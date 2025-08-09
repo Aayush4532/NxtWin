@@ -125,3 +125,18 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: none;
+}
+
+/* Internet Explorer/Old Edge */
+* {
+  -ms-overflow-style: none;
+}
