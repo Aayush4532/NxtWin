@@ -82,7 +82,7 @@ export default function SignInPage() {
                 },
               },
             }}
-            redirectUrl="/dashboard"
+            redirectUrl="/"
             signUpUrl="/sign-up"
           />
         </div>
