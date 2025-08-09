@@ -33,7 +33,7 @@ const Header = () => {
           className="shrink-0 font-semibold text-lg"
         >
           <span className="inline-flex items-center h-10 px-3 rounded-md bg-secondary text-secondary-foreground">
-            Dash
+            Probo
           </span>
         </a>
 
