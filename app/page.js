@@ -1,5 +1,6 @@
 "use client";
 import Home from './components/Home'
+import DashBoard from './Pages/Home';
 import { useUser, UserButton } from "@clerk/nextjs";
 
 export default function Page() {
@@ -16,8 +17,7 @@ export default function Page() {
       </>
       :
       <>
-        isSignedIn hu mai
-        <UserButton />
+        <DashBoard />
       </>
     )
   );
