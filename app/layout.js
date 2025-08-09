@@ -11,8 +11,10 @@ export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
       <html lang="en">
-        <Header />
-        <body className="dark relative">{children}</body>
+        <body className="dark relative">
+          <Header />
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );
