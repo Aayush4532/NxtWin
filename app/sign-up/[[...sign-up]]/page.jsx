@@ -97,17 +97,33 @@ export default function SignUpPage() {
       <style jsx global>{`
         /* subtle vertical float for glows */
         @keyframes glowLeft {
-          0% { transform: translateY(-8px) scale(1) }
-          50% { transform: translateY(8px) scale(1.02) }
-          100% { transform: translateY(-8px) scale(1) }
+          0% {
+            transform: translateY(-8px) scale(1);
+          }
+          50% {
+            transform: translateY(8px) scale(1.02);
+          }
+          100% {
+            transform: translateY(-8px) scale(1);
+          }
         }
         @keyframes glowRight {
-          0% { transform: translateY(8px) scale(1) }
-          50% { transform: translateY(-8px) scale(1.02) }
-          100% { transform: translateY(8px) scale(1) }
+          0% {
+            transform: translateY(8px) scale(1);
+          }
+          50% {
+            transform: translateY(-8px) scale(1.02);
+          }
+          100% {
+            transform: translateY(8px) scale(1);
+          }
         }
-        .animate-glow-left { animation: glowLeft 7s ease-in-out infinite; }
-        .animate-glow-right { animation: glowRight 8s ease-in-out infinite; }
+        .animate-glow-left {
+          animation: glowLeft 7s ease-in-out infinite;
+        }
+        .animate-glow-right {
+          animation: glowRight 8s ease-in-out infinite;
+        }
 
         /* Clerk widget overrides (hide any leftover light panels / branding) */
         .clerk-root .clerk-card__footer,
@@ -116,7 +132,7 @@ export default function SignUpPage() {
           background: transparent !important;
           border-top: none !important;
           box-shadow: none !important;
-          color: rgba(255,255,255,0.85) !important;
+          color: rgba(255, 255, 255, 0.85) !important;
         }
         .clerk-root .clerk-footer__branding,
         .clerk-root .clerk-branding {
