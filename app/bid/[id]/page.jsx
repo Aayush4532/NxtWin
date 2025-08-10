@@ -260,7 +260,7 @@ export default function BidPage() {
                         setBalance((b) => b + 500);
                         pulseMessage("₹500 added");
                       }}
-                      className="w-full rounded-lg px-3 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-semibold shadow"
+                      className="w-full rounded-lg px-3 py-2 bg-gradient-to-r bg-emerald-400 text-black font-semibold shadow"
                     >
                       Add ₹500
                     </button>
@@ -340,6 +340,73 @@ export default function BidPage() {
                 />
               </div>
 
+              {/* AI Analysis Section - Add this after the options */}
+              <div className="rounded-2xl p-6 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)]">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                    Realtime AI's Market Analysis
+                  </h3>
+                  <button
+                    onClick={runAi}
+                    disabled={aiLoading}
+                    className="flex items-center gap-3 px-8 py-3 bg-transparent border-2 border-amber-400 hover:border-amber-300 text-amber-400 hover:text-amber-300 font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-amber-400 disabled:hover:text-amber-400 transition-all duration-300 hover:bg-amber-400/10 hover:shadow-lg hover:shadow-amber-400/20"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <div className="w-5 h-5">
+                          <div className="w-5 h-5 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin"></div>
+                        </div>
+                        <span>Analyzing...</span>
+                      </>
+                    ) : (
+                      <>
+                        {/* Premium Icon Placeholder */}
+                        <div className="w-5 h-5">
+                          <img
+                            src="/premium.svg"
+                            alt="Premium AI Analysis"
+                            className="w-5 h-5 filter brightness-0 saturate-100"
+                            style={{
+                              filter:
+                                "invert(77%) sepia(89%) saturate(1919%) hue-rotate(3deg) brightness(103%) contrast(107%)",
+                            }}
+                          />
+                        </div>
+                        <span>Run AI Analysis</span>
+                        {/* Premium badge indicator */}
+                        <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* AI Results Display */}
+                {aiResult && !aiResult.error && (
+                  <AIResultsCard result={aiResult} />
+                )}
+
+                {/* Error State */}
+                {aiResult?.error && (
+                  <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <span className="text-red-400">❌</span>
+                    <p className="text-red-300">
+                      Failed to analyze: {aiResult.error}
+                    </p>
+                  </div>
+                )}
+
+                {/* No results yet */}
+                {!aiResult && !aiLoading && (
+                  <div className="text-center py-8 text-slate-400">
+                    <div className="text-4xl mb-2"></div>
+                    <p>
+                      Click "Run AI Analysis" to get AI-powered predictions for
+                      this market
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* discussion */}
               <div className="rounded-2xl p-6 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)]">
                 <h3 className="text-lg font-semibold text-slate-100">
@@ -384,13 +451,6 @@ export default function BidPage() {
                     </button>
                   </div>
                 </div>
-                <button
-                  disabled={aiLoading}
-                  onClick={runAi}
-                  className="mt-4 w-full rounded-lg px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-400 font-semibold"
-                >
-                  {aiLoading ? "Analyzing…" : "AI Analyze"}
-                </button>
               </div>
 
               <div className="rounded-2xl p-5 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)] w-80">
@@ -475,6 +535,134 @@ export default function BidPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* --- AIResultsCard component --- */
+function AIResultsCard({ result }) {
+  const getWinnerColor = (winner) => {
+    if (winner === "A") return "#10b981"; // Green
+    if (winner === "B") return "#f59e0b"; // Amber
+    return "#6b7280"; // Gray for tie
+  };
+
+  const getConfidenceLevel = (confidence) => {
+    if (confidence >= 0.8) return { text: "High", color: "#10b981" };
+    if (confidence >= 0.6) return { text: "Medium", color: "#f59e0b" };
+    return { text: "Low", color: "#ef4444" };
+  };
+
+  const confidenceInfo = getConfidenceLevel(result.confidence);
+
+  return (
+    <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.1)] rounded-xl p-6 space-y-6">
+      {/* Probability Bars */}
+      <div>
+        <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+          Probability Analysis
+        </h4>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-slate-300 font-medium">
+                {result.optionA}
+              </span>
+              <span className="text-blue-400 font-bold">
+                {result.optionA_percent}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-800 ease-out"
+                style={{ width: `${result.optionA_percent}%` }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-slate-300 font-medium">
+                {result.optionB}
+              </span>
+              <span className="text-amber-400 font-bold">
+                {result.optionB_percent}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r bg-red-400  duration-800 ease-out"
+                style={{ width: `${result.optionB_percent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Winner & Confidence */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-600/50">
+        <div>
+          <h5 className="text-slate-400 text-sm font-medium mb-2">
+            🏆 AI Prediction
+          </h5>
+          <div
+            className="px-3 py-2 rounded-lg border text-center font-medium"
+            style={{
+              backgroundColor: `${getWinnerColor(result.winner)}20`,
+              borderColor: getWinnerColor(result.winner),
+              color: getWinnerColor(result.winner),
+            }}
+          >
+            {result.winner === "Tie"
+              ? "Too Close to Call"
+              : result.winner === "A"
+              ? result.optionA
+              : result.optionB}
+          </div>
+        </div>
+
+        <div>
+          <h5 className="text-slate-400 text-sm font-medium mb-2">
+            📈 Confidence
+          </h5>
+          <div
+            className="px-3 py-2 rounded-lg border text-center font-medium"
+            style={{
+              backgroundColor: `${confidenceInfo.color}20`,
+              borderColor: confidenceInfo.color,
+              color: confidenceInfo.color,
+            }}
+          >
+            {confidenceInfo.text} ({Math.round(result.confidence * 100)}%)
+          </div>
+        </div>
+      </div>
+
+      {/* Reasoning */}
+      <div className="pt-4 border-t border-slate-600/50">
+        <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+          💡 AI Reasoning
+        </h5>
+        <p className="text-slate-300 leading-relaxed">{result.reasoning}</p>
+      </div>
+
+      {/* Market Insights */}
+      {result.market_insights && result.market_insights.length > 0 && (
+        <div className="pt-4 border-t border-slate-600/50">
+          <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+            🔍 Market Insights
+          </h5>
+          <ul className="space-y-2">
+            {result.market_insights.map((insight, index) => (
+              <li key={index} className="flex items-start gap-2 text-slate-300">
+                <span className="text-blue-400 font-bold mt-1">•</span>
+                <span className="leading-relaxed">{insight}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
