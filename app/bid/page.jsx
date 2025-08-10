@@ -418,7 +418,7 @@ function CardGrid({ market, selected, onSelect }) {
   );
 }
 
-export function CardList({ market, selected, onSelect }) {
+function CardList({ market, selected, onSelect }) {
   const volCompact = formatINRCompact(market.volume);
   const { yes, no } = getPrices(market.yesShare);
   const noShare = 100 - market.yesShare;
