@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -8,10 +8,67 @@ import {
   getPrices,
 } from "../utils/formatters";
 import SpotlightCard from "../components/SpotlightCard";
-import { SAMPLE } from "../data/bids_data";
 
 export default function Page() {
-  const [data] = useState(SAMPLE);
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("http://localhost:1102/api/get/bids");
+        const results = await res.json().catch(() => null);
+
+        // defensive: if results is not object or has no bids, fallback to []
+        const rawBids = Array.isArray(results?.bids) ? results.bids : [];
+
+        // normalize into the shape UI expects (safe defaults)
+        const normalized = rawBids.map((b) => {
+          const optA = (b.options && b.options[0]) || { key: "A", label: "Yes", currentPrice: 0 };
+          const optB = (b.options && b.options[1]) || { key: "B", label: "No", currentPrice: 0 };
+
+          const priceA = Number(optA.currentPrice ?? 0);
+          const priceB = Number(optB.currentPrice ?? 0);
+          const sumPrice = priceA + priceB;
+          const yesShare = sumPrice > 0 ? Math.round((priceA / sumPrice) * 100) : 50;
+
+          const avgPrice = sumPrice > 0 ? Math.round(sumPrice / 2) : 0;
+          const stocks = Number(b.stocks ?? 0);
+          const volume = (sumPrice) * (stocks || 1); // numeric
+
+          const participants = Number(b.participants ?? b.stocks ?? 0);
+
+          const endTime = b.endTime ? new Date(b.endTime) : null;
+          const deadline = endTime ? endTime.toLocaleString() : (b.deadline ?? "—");
+
+          return {
+            // keep original fields too, but add the UI-friendly ones
+            ...b,
+            id: b._id ?? b.id ?? `${b._id ?? Math.random().toString(36).slice(2, 9)}`,
+            _id: b._id ?? b.id ?? null,
+            title: b.question ?? b.title ?? "Untitled market",
+            question: b.question ?? b.title ?? "Untitled market",
+            optionA: optA.label ?? "Yes",
+            optionB: optB.label ?? "No",
+            optionAPrice: priceA,
+            optionBPrice: priceB,
+            amount: avgPrice,
+            volume: Number.isFinite(volume) ? volume : 0,
+            yesShare: Number.isFinite(yesShare) ? yesShare : 50,
+            participants: Number.isFinite(participants) ? participants : 0,
+            deadline,
+            image: b.image ?? null,
+          };
+        });
+
+        setData(normalized);
+      } catch (err) {
+        console.error("fetch bids failed:", err);
+        setData([]);
+      }
+    };
+    fetchData();
+  }, []);
+
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
   const [minAmount, setMinAmount] = useState(0);
@@ -21,27 +78,34 @@ export default function Page() {
   const [viewMode, setViewMode] = useState("grid");
 
   const categories = useMemo(
-    () => ["All", ...Array.from(new Set(data.map((d) => d.category)))],
+    () => ["All", ...Array.from(new Set(data.map((d) => d.category ?? "Uncategorized")))],
     [data]
   );
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    let r = data.filter((m) => {
-      if (category !== "All" && m.category !== category) return false;
-      if (m.amount < minAmount || m.amount > maxAmount) return false;
+    let r = (Array.isArray(data) ? data : []).filter((m) => {
+      if (category !== "All" && (m.category ?? "Uncategorized") !== category) return false;
+
+      // amount safety: fallback to 0 if missing
+      const amt = Number(m.amount ?? 0);
+      if (amt < minAmount || amt > maxAmount) return false;
+
       if (!ql) return true;
-      return (
-        m.title.toLowerCase().includes(ql) ||
-        m.optionA.toLowerCase().includes(ql) ||
-        m.optionB.toLowerCase().includes(ql) ||
-        m.category.toLowerCase().includes(ql)
-      );
+
+      // fields to search safely
+      const title = (m.title ?? m.question ?? "").toString().toLowerCase();
+      const optionA = (m.optionA ?? "").toString().toLowerCase();
+      const optionB = (m.optionB ?? "").toString().toLowerCase();
+      const cat = (m.category ?? "").toString().toLowerCase();
+
+      return title.includes(ql) || optionA.includes(ql) || optionB.includes(ql) || cat.includes(ql);
     });
-    if (sortBy === "amount-desc") r = r.sort((a, b) => b.amount - a.amount);
-    else if (sortBy === "amount-asc") r = r.sort((a, b) => a.amount - b.amount);
+
+    if (sortBy === "amount-desc") r = r.sort((a, b) => Number(b.amount ?? 0) - Number(a.amount ?? 0));
+    else if (sortBy === "amount-asc") r = r.sort((a, b) => Number(a.amount ?? 0) - Number(b.amount ?? 0));
     else if (sortBy === "newest")
-      r = r.sort((a, b) => new Date(b.date) - new Date(a.date));
+      r = r.sort((a, b) => new Date(b.createdAt ?? b.startTime ?? 0) - new Date(a.createdAt ?? a.startTime ?? 0));
     return r;
   }, [data, q, category, minAmount, maxAmount, sortBy]);
 
@@ -201,7 +265,7 @@ export default function Page() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
             {filtered.map((m) => (
               <CardGrid
-                key={m.id}
+                key={m._id ?? m.id}
                 market={m}
                 selected={selected === m.id}
                 onSelect={() => setSelected((s) => (s === m.id ? null : m.id))}
@@ -212,7 +276,7 @@ export default function Page() {
           <div className="flex flex-col gap-4">
             {filtered.map((m) => (
               <CardList
-                key={m.id}
+                key={m._id ?? m.id}
                 market={m}
                 selected={selected === m.id}
                 onSelect={() => setSelected((s) => (s === m.id ? null : m.id))}
@@ -311,8 +375,8 @@ function ProgressPulse({ value = 50 }) {
 /* ---------- cards (no channel/owner in grid) ---------- */
 
 function CardGrid({ market, selected, onSelect }) {
-  const volCompact = formatINRCompact(market.volume);
-  const { yes, no } = getPrices(market.yesShare);
+  const volCompact = formatINRCompact(market.volume ?? 0);
+  const { yes, no } = getPrices(Number(market.yesShare ?? 50));
 
   return (
     <SpotlightCard
@@ -344,7 +408,7 @@ function CardGrid({ market, selected, onSelect }) {
             </div>
 
             <div className="absolute inset-x-0 bottom-0 p-3">
-              <ProgressPulse value={market.yesShare} />
+              <ProgressPulse value={Number(market.yesShare ?? 50)} />
             </div>
           </div>
         </Link>
@@ -367,7 +431,7 @@ function CardGrid({ market, selected, onSelect }) {
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-sm text-slate-200">
-                {market.yesShare}% Yes
+                {Number(market.yesShare ?? 50)}% Yes
               </span>
               <input
                 type="radio"
@@ -385,20 +449,20 @@ function CardGrid({ market, selected, onSelect }) {
                 {market.optionA}
               </span>
               <span className="text-emerald-200 tabular-nums">
-                ₹{(yes * 100).toFixed(0)}
+                ₹{Math.round((yes ?? 0) * 100)}
               </span>
             </div>
             <div className="flex-1 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 flex items-center justify-between">
               <span className="text-red-400 font-medium">{market.optionB}</span>
               <span className="text-red-300 tabular-nums">
-                ₹{(no * 100).toFixed(0)}
+                ₹{Math.round((no ?? 0) * 100)}
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-12 items-center">
             <div className="col-span-7 flex items-center gap-3 text-xs text-slate-400">
-              <span>{market.participants.toLocaleString()} joined</span>
+              <span>{(Number(market.participants ?? 0)).toLocaleString()} joined</span>
               <span>•</span>
               <span>{market.deadline}</span>
             </div>
@@ -419,9 +483,9 @@ function CardGrid({ market, selected, onSelect }) {
 }
 
 function CardList({ market, selected, onSelect }) {
-  const volCompact = formatINRCompact(market.volume);
-  const { yes, no } = getPrices(market.yesShare);
-  const noShare = 100 - market.yesShare;
+  const volCompact = formatINRCompact(market.volume ?? 0);
+  const { yes, no } = getPrices(Number(market.yesShare ?? 50));
+  const noShare = 100 - Number(market.yesShare ?? 50);
 
   return (
     <Link
@@ -453,7 +517,7 @@ function CardList({ market, selected, onSelect }) {
             </div>
 
             <div className="absolute inset-x-0 bottom-0 p-3">
-              <ProgressPulse value={market.yesShare} />
+              <ProgressPulse value={Number(market.yesShare ?? 50)} />
             </div>
           </div>
         </div>
@@ -461,7 +525,7 @@ function CardList({ market, selected, onSelect }) {
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-lg font-semibold leading-snug text-slate-100 line-clamp-2">
-              {market.title}
+              {market.question}
             </h3>
             <input
               type="radio"
@@ -484,11 +548,11 @@ function CardList({ market, selected, onSelect }) {
               <div className="flex items-center gap-2">
                 <span className="text-emerald-300 font-medium">Yes</span>
                 <span className="text-emerald-200 text-sm">
-                  {market.yesShare}%
+                  {Number(market.yesShare ?? 50)}%
                 </span>
               </div>
               <span className="text-emerald-200 tabular-nums">
-                ₹{(yes * 100).toFixed(0)}
+                ₹{Math.round((yes ?? 0) * 100)}
               </span>
             </div>
             <div className="flex-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 flex items-center justify-between">
@@ -497,7 +561,7 @@ function CardList({ market, selected, onSelect }) {
                 <span className="text-cyan-200 text-sm">{noShare}%</span>
               </div>
               <span className="text-cyan-200 tabular-nums">
-                ₹{(no * 100).toFixed(0)}
+                ₹{Math.round((no ?? 0) * 100)}
               </span>
             </div>
           </div>
@@ -505,7 +569,7 @@ function CardList({ market, selected, onSelect }) {
           <div className="mt-1 grid grid-cols-12 items-center gap-3">
             <div className="col-span-7 flex items-center gap-3 text-xs text-slate-400">
               <Badge>
-                Participants: {market.participants.toLocaleString()}
+                Participants: {(Number(market.participants ?? 0)).toLocaleString()}
               </Badge>
               <Badge>Vol: ₹{volCompact}</Badge>
               <Badge>{market.deadline}</Badge>

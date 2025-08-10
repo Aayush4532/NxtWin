@@ -1,9 +1,98 @@
 "use client";
-import { SignUp } from "@clerk/nextjs";
+import { SignUp, useUser } from "@clerk/nextjs";
 import Iridescence from "../../components/Iridescence";
 import DarkVeil from "../../components/DarkVeil";
+import { useEffect, useRef } from "react";
 
 export default function SignUpPage() {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const postedRef = useRef(false); // prevent duplicate client-side posts in same session
+
+  useEffect(() => {
+    // wait until Clerk user is fully loaded and signed in
+    if (!isLoaded || !isSignedIn || !user) return;
+
+    // prevent multiple posts in same tab/session
+    if (postedRef.current) {
+      console.debug("[SignUpPage] creation already attempted this session");
+      return;
+    }
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const createUser = async () => {
+      // prepare fields, fallback-friendly
+      const clerkId = String(user.id);
+      const fullName =
+        user.fullName ||
+        [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+        "Unnamed User";
+      // preferred email extraction
+      const email =
+        user.primaryEmailAddress?.emailAddress ||
+        (Array.isArray(user.emailAddresses) && user.emailAddresses[0]?.emailAddress) ||
+        user.email ||
+        null;
+
+      if (!email) {
+        console.warn("[SignUpPage] No email found on Clerk user — aborting create.");
+        return;
+      }
+
+      const payload = {
+        fullName,
+        email,
+        clerkId,
+        // optional: you can send balance/currency/role too if you want defaults different than schema
+        // balance: 1500,
+        // currency: "INR",
+        // role: "user",
+      };
+
+      try {
+        console.debug("[SignUpPage] POSTing to backend create user:", payload);
+        const res = await fetch("http://localhost:1102/api/create/user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal,
+        });
+
+        if (res.ok) {
+          console.info("[SignUpPage] user created successfully on backend");
+          postedRef.current = true;
+          return;
+        }
+
+        // if already exists (unique constraint), treat as success
+        if (res.status === 409 || res.status === 400) {
+          // optionally read body for detail
+          const txt = await res.text().catch(() => "");
+          console.info(`[SignUpPage] backend returned ${res.status} (likely exists). body:`, txt);
+          postedRef.current = true;
+          return;
+        }
+
+        // other errors: log
+        const text = await res.text().catch(() => "");
+        console.error("[SignUpPage] backend create failed:", res.status, text);
+      } catch (err) {
+        if (err.name === "AbortError") {
+          console.debug("[SignUpPage] create request aborted");
+        } else {
+          console.error("[SignUpPage] create request error:", err);
+        }
+      }
+    };
+
+    createUser();
+
+    return () => {
+      controller.abort();
+    };
+  }, [isLoaded, isSignedIn, user]);
+
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-black p-6">
       {/* Fullscreen Iridescence Background */}
@@ -15,7 +104,6 @@ export default function SignUpPage() {
           scanlineIntensity={0.8}
           warpAmount={1}
         />
-        {/* Optional dark vignette for better text contrast */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_40%,rgba(0,0,0,0.75)_100%)]" />
       </div>
 

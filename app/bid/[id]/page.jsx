@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { SAMPLE } from "../../data/bids_data";
+// import { SAMPLE } from "../../data/bids_data";
 
 export default function BidPage() {
   const { id } = useParams();
@@ -28,65 +28,182 @@ export default function BidPage() {
 
   useEffect(() => {
     mount.current = true;
-    async function load() {
-      setLoadingMarket(true);
-      try {
-        // First try to get data from the SAMPLE array
-        const foundMarket = SAMPLE.find((market) => market.id === id);
 
-        if (foundMarket) {
-          // Transform the data to match expected structure
+    async function fetchByIdDirect(apiBase, bidId) {
+      const url = `${apiBase.replace(/\/$/, "")}/api/get/bid/${encodeURIComponent(
+        bidId
+      )}`;
+      console.log("[BidPage] trying direct fetch:", url);
+      const res = await fetch(url, {
+        method: "GET",
+        // do not set Content-Type for GET to avoid preflight
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        const e = new Error(`Direct fetch failed: ${res.status} ${res.statusText} ${errText}`);
+        e.status = res.status;
+        throw e;
+      }
+      const json = await res.json().catch(() => null);
+      return json;
+    }
+
+    async function fetchAllAndFind(apiBase, bidId) {
+      const url = `${apiBase.replace(/\/$/, "")}/api/get/bids`;
+      console.log("[BidPage] trying fallback fetch all:", url);
+      const res = await fetch(url, { method: "GET", cache: "no-store" });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Fallback fetch all failed: ${res.status} ${res.statusText} ${errText}`);
+      }
+      const json = await res.json().catch(() => null);
+      // support different shapes: { bids: [...] } or array
+      const arr = Array.isArray(json) ? json : json?.bids ?? json?.data ?? [];
+      if (!Array.isArray(arr)) return null;
+      // find by _id or id
+      return arr.find((b) => String(b._id) === String(bidId) || String(b.id) === String(bidId)) ?? null;
+    }
+
+    async function load() {
+      if (!id) {
+        setLoadingMarket(false);
+        return;
+      }
+
+      setLoadingMarket(true);
+      setMessage(null);
+
+      const API_BASE =
+        (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE) ||
+        "http://localhost:1102";
+
+      try {
+        // First, check SAMPLE local (optional). This preserves previous dev behavior but you said remove sample
+        // I will prefer network fetch first; but if SAMPLE has that id, use it as quick path.
+        if (localFound) {
+          console.log("[BidPage] found in SAMPLE, using local sample entry");
           const transformedMarket = {
-            id: foundMarket.id,
-            title: foundMarket.title,
-            category: foundMarket.category,
-            deadline: foundMarket.deadline,
-            optionA: foundMarket.optionA,
-            optionB: foundMarket.optionB,
-            yesShare: foundMarket.yesShare,
-            participants: foundMarket.participants,
-            volume: foundMarket.volume || foundMarket.amount * 1000,
-            context: `Market analysis for ${foundMarket.category.toLowerCase()} prediction`,
-            marketNews: `Recent activity shows ${foundMarket.participants} participants with ${foundMarket.yesShare}% confidence.`,
-            image: foundMarket.image,
+            id: localFound.id ?? localFound._id,
+            title: localFound.title ?? localFound.question,
+            category: localFound.category,
+            deadline: localFound.deadline,
+            optionA: localFound.optionA ?? localFound.options?.[0]?.label ?? "Yes",
+            optionB: localFound.optionB ?? localFound.options?.[1]?.label ?? "No",
+            yesShare: Number.isFinite(localFound.yesShare) ? localFound.yesShare : 50,
+            participants: localFound.participants ?? localFound.stocks ?? 0,
+            volume: localFound.volume ?? localFound.amount ?? 0,
+            context: localFound.context ?? "",
+            marketNews: localFound.marketNews ?? "",
+            image: localFound.image ?? null,
+            _raw: localFound,
           };
 
-          setMarket(transformedMarket);
-          const start = Math.max(
-            1,
-            Math.min(100, Math.round(transformedMarket.yesShare ?? 50))
-          );
-          setSliderValue(start);
-          setExactAmt(start);
-        } else {
-          // Try API call as fallback
-          const res = await fetch(`/api/markets/${id}`);
-          if (res.ok) {
-            const j = await res.json();
-            setMarket(j);
-            const start = Math.max(
-              1,
-              Math.min(100, Math.round(j?.yesShare ?? 50))
-            );
+          if (mount.current) {
+            setMarket(transformedMarket);
+            const start = Math.max(1, Math.min(100, Math.round(transformedMarket.yesShare ?? 50)));
             setSliderValue(start);
             setExactAmt(start);
-          } else {
-            const sm = sampleMarket();
-            setMarket(sm);
-            setSliderValue(50);
-            setExactAmt(50);
+            setLoadingMarket(false);
+          }
+          return;
+        }
+
+        // Try direct endpoint first
+        let rawResp = null;
+        try {
+          rawResp = await fetchByIdDirect(API_BASE, id);
+        } catch (directErr) {
+          console.warn("[BidPage] direct fetch error:", directErr);
+          // If 404 specifically, try fallback. For other errors also try fallback.
+          rawResp = null;
+        }
+
+        // If direct returned a response, extract bid object or the object itself
+        let raw = null;
+        if (rawResp) {
+          raw = rawResp.bid ?? rawResp?.data ?? rawResp;
+        }
+
+        // If direct fetch didn't yield usable data, try fetching all and finding by id
+        if (!raw) {
+          const found = await fetchAllAndFind(API_BASE, id);
+          if (found) {
+            raw = found;
           }
         }
-      } catch {
-        const sm = sampleMarket();
-        setMarket(sm);
-        setSliderValue(50);
-        setExactAmt(50);
+
+        if (!raw) {
+          throw new Error("No bid data found from API (direct and fallback both failed)");
+        }
+
+        // Normalize raw into market structure expected by UI
+        const opts = Array.isArray(raw.options) ? raw.options : [];
+        const optA = opts[0] ?? { key: "A", label: raw.options?.[0]?.label ?? raw.optionA ?? "Yes", currentPrice: opts[0]?.currentPrice ?? raw.optionAPrice ?? 0 };
+        const optB = opts[1] ?? { key: "B", label: raw.options?.[1]?.label ?? raw.optionB ?? "No", currentPrice: opts[1]?.currentPrice ?? raw.optionBPrice ?? 0 };
+
+        const priceA = Number(optA.currentPrice ?? 0);
+        const priceB = Number(optB.currentPrice ?? 0);
+        const sumPrice = (Number.isFinite(priceA) ? priceA : 0) + (Number.isFinite(priceB) ? priceB : 0);
+
+        const yesShare = typeof raw.yesShare === "number"
+          ? Math.max(0, Math.min(100, Math.round(raw.yesShare)))
+          : sumPrice > 0
+            ? Math.round((priceA / sumPrice) * 100)
+            : 50;
+
+        const participants = Number(raw.participants ?? raw.stocks ?? raw.stocks ?? 0) || 0;
+        const volume = Number(raw.volume ?? 0) || 0;
+
+        let deadline = raw.deadline ?? null;
+        if (!deadline) {
+          const end = raw.endTime ?? raw.end_date ?? raw.end;
+          deadline = end ? (new Date(end).toLocaleString() || String(end)) : "—";
+        }
+
+        const normalized = {
+          ...raw,
+          id: raw._id ?? raw.id ?? id,
+          _id: raw._id ?? raw.id ?? null,
+          title: raw.question ?? raw.title ?? "Untitled market",
+          question: raw.question ?? raw.title ?? "Untitled market",
+          category: raw.category ?? "Uncategorized",
+          optionA: optA.label ?? "Yes",
+          optionB: optB.label ?? "No",
+          optionAPrice: priceA,
+          optionBPrice: priceB,
+          amount: Number(raw.amount ?? Math.round(sumPrice > 0 ? sumPrice / 2 : 0)),
+          volume,
+          yesShare: Math.max(0, Math.min(100, Number(yesShare))),
+          participants,
+          deadline,
+          context: raw.context ?? raw.marketNews ?? "",
+          marketNews: raw.marketNews ?? raw.context ?? "",
+          image: raw.image ?? null,
+          _raw: raw,
+        };
+
+        if (mount.current) {
+          setMarket(normalized);
+          const start = Math.max(1, Math.min(100, Math.round(normalized.yesShare ?? 50)));
+          setSliderValue(start);
+          setExactAmt(start);
+        }
+      } catch (err) {
+        console.error("Failed to load market:", err);
+        if (mount.current) {
+          setMarket(null);
+          setSliderValue(50);
+          setExactAmt(50);
+          setMessage("Market data load failed. Check server logs & console.");
+        }
       } finally {
         if (mount.current) setLoadingMarket(false);
       }
     }
+
     load();
+
     return () => {
       mount.current = false;
     };
@@ -95,7 +212,7 @@ export default function BidPage() {
   useEffect(() => {
     try {
       localStorage.setItem("balance", String(balance));
-    } catch {}
+    } catch { }
   }, [balance]);
 
   useEffect(() => {
@@ -254,29 +371,11 @@ export default function BidPage() {
                   <div className="mt-1 text-2xl font-bold text-slate-100 transition-colors duration-200">
                     {balance >= 0 ? `₹${balance.toFixed(2)}` : `-`}
                   </div>
-                  <div className="mt-4 grid gap-2">
-                    <button
-                      onClick={() => {
-                        setBalance((b) => b + 500);
-                        pulseMessage("₹500 added");
-                      }}
-                      className="w-full rounded-lg px-3 py-2 bg-gradient-to-r bg-emerald-400 text-black font-semibold shadow"
-                    >
-                      Add ₹500
-                    </button>
-                    <button
-                      onClick={() => {
-                        setBalance(1000);
-                        pulseMessage("Balance reset to ₹1000");
-                      }}
-                      className="w-full rounded-lg px-3 py-2 border border-[rgba(255,255,255,0.04)] text-sm text-slate-300"
-                    >
-                      Reset
-                    </button>
+                  <div className="mt-1 text-sm text-slate-400">
+                    {balance >= 0 ? "Available for bidding" : "No funds available"}
                   </div>
                 </div>
               </div>
-
               {/* options - use more width, roomy cards */}
               <div className="grid md:grid-cols-2 gap-6">
                 <OptionCard
@@ -413,10 +512,8 @@ export default function BidPage() {
                   Discussion & Context
                 </h3>
                 <div className="mt-3 text-slate-300 leading-relaxed max-w-prose">
-                  This market bundles short-term news and available context.
-                  Place small bets to test the AI's edge, watch how the
-                  percentages react to new information, and keep your exposure
-                  controlled.
+                  {market?.context ||
+                    "No additional context provided for this market."}
                 </div>
               </div>
             </div>
@@ -435,17 +532,15 @@ export default function BidPage() {
                   <div className="rounded-full bg-[rgba(255,255,255,0.03)] p-1 flex items-center">
                     <button
                       onClick={() => setMode("amount")}
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        mode === "amount" ? "bg-[rgba(255,255,255,0.02)]" : ""
-                      }`}
+                      className={`px-3 py-1 rounded-full text-sm ${mode === "amount" ? "bg-[rgba(255,255,255,0.02)]" : ""
+                        }`}
                     >
                       Amount
                     </button>
                     <button
                       onClick={() => setMode("write")}
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        mode === "write" ? "bg-[rgba(255,255,255,0.02)]" : ""
-                      }`}
+                      className={`px-3 py-1 rounded-full text-sm ${mode === "write" ? "bg-[rgba(255,255,255,0.02)]" : ""
+                        }`}
                     >
                       Write
                     </button>
@@ -617,8 +712,8 @@ function AIResultsCard({ result }) {
             {result.winner === "Tie"
               ? "Too Close to Call"
               : result.winner === "A"
-              ? result.optionA
-              : result.optionB}
+                ? result.optionA
+                : result.optionB}
           </div>
         </div>
 
@@ -705,9 +800,8 @@ function OptionCard({
         onSelect();
       }}
       onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      className={`rounded-2xl p-6 bg-[rgba(10,12,16,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.03)] cursor-pointer transform transition hover:-translate-y-1 ${
-        selected === side ? "ring-2 ring-emerald-400 ring-opacity-25" : ""
-      }`}
+      className={`rounded-2xl p-6 bg-[rgba(10,12,16,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.03)] cursor-pointer transform transition hover:-translate-y-1 ${selected === side ? "ring-2 ring-emerald-400 ring-opacity-25" : ""
+        }`}
     >
       <div className="flex items-start justify-between gap-5">
         <div className="flex-1 pr-4">
