@@ -5,7 +5,7 @@ import Portfolio from "../components/sections/Portfolio";
 import Footer from "../components/layout/Footer";
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background mt-[10vh]">
       <main>
         <Hero />
         <Categories />
