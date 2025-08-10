@@ -321,16 +321,16 @@ const ProboHeader = () => {
                 </div>
               ) : (
                 <div className="flex space-x-3">
-                  <SignInButton mode="modal">
+                  <a href="/sign-in">
                     <button className="flex-1 px-4 py-3 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors">
                       Sign In
                     </button>
-                  </SignInButton>
-                  <SignUpButton mode="modal">
+                  </a>
+                  <a href="/sign-up">
                     <button className="flex-1 px-4 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all">
                       Sign Up
                     </button>
-                  </SignUpButton>
+                  </a>
                 </div>
               )}
             </div>
