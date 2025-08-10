@@ -557,49 +557,6 @@ function AIResultsCard({ result }) {
 
   return (
     <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.1)] rounded-xl p-6 space-y-6">
-      {/* Probability Bars */}
-      <div>
-        <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-          Probability Analysis
-        </h4>
-
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-slate-300 font-medium">
-                {result.optionA}
-              </span>
-              <span className="text-blue-400 font-bold">
-                {result.optionA_percent}%
-              </span>
-            </div>
-            <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-800 ease-out"
-                style={{ width: `${result.optionA_percent}%` }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-slate-300 font-medium">
-                {result.optionB}
-              </span>
-              <span className="text-amber-400 font-bold">
-                {result.optionB_percent}%
-              </span>
-            </div>
-            <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r bg-red-400  duration-800 ease-out"
-                style={{ width: `${result.optionB_percent}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Winner & Confidence */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-600/50">
         <div>
