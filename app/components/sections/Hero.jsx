@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
+import { useUser } from "@clerk/clerk-react";
+import GradientText from "../GradientText";
+import Silk from "../Silk";
 
 const Hero = () => {
+  const { user } = useUser();
+  const username = user?.firstName || user?.username || "there";
   const [pos, setPos] = useState({ x: 50, y: 50 });
 
   useEffect(() => {
@@ -15,26 +20,44 @@ const Hero = () => {
   }, []);
 
   return (
-    <section aria-labelledby="hero-title" className="container mx-auto px-4">
+    <section
+      aria-labelledby="hero-title"
+      className="container mx-auto px-4 relative"
+    >
       <div
-        className="rounded-2xl border overflow-hidden"
+        className="rounded-2xl border overflow-hidden relative"
         style={{
           background: `radial-gradient(600px 300px at ${pos.x}% ${pos.y}%, hsl(var(--primary) / 0.25), transparent 60%), var(--gradient-subtle)`,
         }}
       >
-        <div className="px-6 py-12 md:px-12 md:py-16 grid md:grid-cols-2 items-center gap-8">
-          <div>
-            <h1
+        {/* Silk component positioned as background */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <Silk
+            speed={5}
+            scale={1}
+            color="#10c2b6"
+            noiseIntensity={1.5}
+            rotation={0}
+          />
+        </div>
+
+        {/* Content with relative positioning to appear above Silk */}
+        <div className="px-6 py-12 md:px-12 md:py-16 grid md:grid-cols-2 gap-8 relative z-10">
+          <div className="text-center md:text-left">
+            <GradientText
+              colors={["#40ffaa", "#4079ff", "#40ffaa", "#4079ff", "#40ffaa"]}
+              animationSpeed={1}
+              showBorder={false}
+              className="text-4xl md:text-5xl font-semibold leading-tight !justify-start !mx-0 !max-w-none"
               id="hero-title"
-              className="text-4xl md:text-5xl font-semibold leading-tight"
             >
-              Personal Dashboard Landing
-            </h1>
+              Welcome, {username}
+            </GradientText>
             <p className="mt-3 text-muted-foreground max-w-xl">
-              A clean hub for your search, categories and portfolio — crafted
-              with a colorful, modern design system.
+              Discover new categories, track your portfolio, and stay updated
+              with the latest market trends — all tailored just for {username}.
             </p>
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex gap-3 justify-center md:justify-start">
               <Button variant="hero">Explore Categories</Button>
               <Button variant="outline">View Portfolio</Button>
             </div>

@@ -18,7 +18,12 @@ import {
   Gavel,
   User,
 } from "lucide-react";
-import { UserButton, useUser, SignInButton, SignUpButton } from "@clerk/clerk-react";
+import {
+  UserButton,
+  useUser,
+  SignInButton,
+  SignUpButton,
+} from "@clerk/clerk-react";
 
 const ProboHeader = () => {
   const { isSignedIn } = useUser();
@@ -33,7 +38,10 @@ const ProboHeader = () => {
   // Close dropdowns if click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (walletDropdownRef.current && !walletDropdownRef.current.contains(e.target)) {
+      if (
+        walletDropdownRef.current &&
+        !walletDropdownRef.current.contains(e.target)
+      ) {
         setIsWalletDropdownOpen(false);
       }
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
@@ -65,15 +73,51 @@ const ProboHeader = () => {
 
   const navLinks = [
     { name: "Home", icon: Home, href: "/", active: pathname === "/" },
-    { name: "BidTube", icon: Gavel, href: "/bid", active: pathname.startsWith("/bid") },
-    { name: "Portfolio", icon: Briefcase, href: "/portfolio", active: pathname.startsWith("/portfolio") },
-    { name: "Markets", icon: BarChart, href: "/markets", active: pathname.startsWith("/markets") },
+    {
+      name: "Bids",
+      icon: Gavel,
+      href: "/bid",
+      active: pathname.startsWith("/bid"),
+    },
+    {
+      name: "Portfolio",
+      icon: Briefcase,
+      href: "/portfolio",
+      active: pathname.startsWith("/portfolio"),
+    },
+    {
+      name: "Markets",
+      icon: BarChart,
+      href: "/markets",
+      active: pathname.startsWith("/markets"),
+    },
   ];
 
   const walletOptions = [
-    { name: "Deposit Funds", icon: CreditCard, action: () => { console.log("Deposit"); setIsWalletDropdownOpen(false); } },
-    { name: "Withdraw", icon: Wallet, action: () => { console.log("Withdraw"); setIsWalletDropdownOpen(false); } },
-    { name: "Transaction History", icon: BarChart, action: () => { console.log("History"); setIsWalletDropdownOpen(false); } },
+    {
+      name: "Deposit Funds",
+      icon: CreditCard,
+      action: () => {
+        console.log("Deposit");
+        setIsWalletDropdownOpen(false);
+      },
+    },
+    {
+      name: "Withdraw",
+      icon: Wallet,
+      action: () => {
+        console.log("Withdraw");
+        setIsWalletDropdownOpen(false);
+      },
+    },
+    {
+      name: "Transaction History",
+      icon: BarChart,
+      action: () => {
+        console.log("History");
+        setIsWalletDropdownOpen(false);
+      },
+    },
   ];
 
   return (
@@ -82,8 +126,10 @@ const ProboHeader = () => {
       <div
         className="absolute inset-0 -z-10"
         style={{
-          background: "linear-gradient(135deg, rgba(15, 15, 25, 0.85) 0%, rgba(5, 5, 10, 0.95) 100%)",
-          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.03), 0 8px 30px rgba(0,0,0,0.85)",
+          background:
+            "linear-gradient(135deg, rgba(15, 15, 25, 0.85) 0%, rgba(5, 5, 10, 0.95) 100%)",
+          boxShadow:
+            "inset 0 1px 1px rgba(255,255,255,0.03), 0 8px 30px rgba(0,0,0,0.85)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
         }}
@@ -98,16 +144,40 @@ const ProboHeader = () => {
               <div className="w-10 h-10 rounded-lg flex items-center justify-center relative">
                 <div className="absolute inset-0 bg-white/6 backdrop-blur-sm rounded-lg border border-white/5 shadow-md"></div>
                 <div className="relative z-10 w-7 h-7 rounded flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-emerald-400" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                    <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="w-5 h-5 text-emerald-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 2L2 7L12 12L22 7L12 2Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M2 17L12 22L22 17"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M2 12L12 17L22 12"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
               </div>
 
               <div>
-                <span className="text-xl font-bold text-white tracking-tight">NxtWin</span>
+                <span className="text-xl font-bold text-white tracking-tight">
+                  NxtWin
+                </span>
                 <div className="h-[2px] w-8 bg-gradient-to-r from-emerald-400 to-transparent mt-0.5"></div>
               </div>
             </div>
@@ -126,9 +196,17 @@ const ProboHeader = () => {
                 }`}
                 aria-current={link.active ? "page" : undefined}
               >
-                <link.icon className={`h-4 w-4 mr-2 ${link.active ? "text-emerald-400" : "text-white/60 group-hover:text-emerald-300"}`} />
+                <link.icon
+                  className={`h-4 w-4 mr-2 ${
+                    link.active
+                      ? "text-emerald-400"
+                      : "text-white/60 group-hover:text-emerald-300"
+                  }`}
+                />
                 <span>{link.name}</span>
-                {link.active && <div className="ml-2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                {link.active && (
+                  <div className="ml-2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                )}
               </Link>
             ))}
           </nav>
@@ -163,7 +241,9 @@ const ProboHeader = () => {
                   <Wallet className="h-5 w-5 text-emerald-400 group-hover:text-emerald-300" />
                   <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-black" />
                 </div>
-                <span className="text-sm font-medium text-white">$24,568.42</span>
+                <span className="text-sm font-medium text-white">
+                  $24,568.42
+                </span>
                 {isWalletDropdownOpen ? (
                   <ChevronUp className="h-4 w-4 text-white/70" />
                 ) : (
@@ -216,9 +296,12 @@ const ProboHeader = () => {
                       appearance={{
                         elements: {
                           userButtonAvatarBox: "w-9 h-9",
-                          userButtonOuterIdentifier: "text-sm font-medium text-white",
-                          userButtonPopoverCard: "bg-black/80 backdrop-blur-2xl border border-white/10 rounded-xl",
-                          userButtonPopoverActionButton: "hover:bg-white/5 text-white",
+                          userButtonOuterIdentifier:
+                            "text-sm font-medium text-white",
+                          userButtonPopoverCard:
+                            "bg-black/80 backdrop-blur-2xl border border-white/10 rounded-xl",
+                          userButtonPopoverActionButton:
+                            "hover:bg-white/5 text-white",
                           userButtonPopoverActionButtonText: "text-sm",
                           userButtonPopoverFooter: "hidden",
                         },
@@ -228,11 +311,11 @@ const ProboHeader = () => {
                 </div>
               ) : (
                 <div className="hidden md:flex items-center space-x-2">
-                    <Link href="/sign-in">
+                  <Link href="/sign-in">
                     <button className="px-4 cursor-pointer py-2.5 text-sm font-medium rounded-xl bg-transparent text-white/80 hover:text-white transition-colors">
                       Sign In
                     </button>
-                    </Link>
+                  </Link>
                   <Link href={"/sign-up"}>
                     <button className="px-4 cursor-pointer py-2.5 text-sm font-medium rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/10">
                       Sign Up
@@ -248,7 +331,11 @@ const ProboHeader = () => {
                 aria-label="Toggle menu"
                 aria-expanded={isMobileMenuOpen}
               >
-                {isMobileMenuOpen ? <X className="h-5 w-5 text-white" /> : <Menu className="h-5 w-5 text-white" />}
+                {isMobileMenuOpen ? (
+                  <X className="h-5 w-5 text-white" />
+                ) : (
+                  <Menu className="h-5 w-5 text-white" />
+                )}
               </button>
             </div>
           </div>
@@ -280,12 +367,20 @@ const ProboHeader = () => {
                   key={link.name}
                   href={link.href}
                   className={`flex items-center px-4 py-3 rounded-lg text-base font-medium ${
-                    link.active ? "text-white bg-white/10" : "text-white/70 hover:text-white hover:bg-white/10"
+                    link.active
+                      ? "text-white bg-white/10"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <link.icon className={`h-5 w-5 mr-3 ${link.active ? "text-emerald-400" : "text-white/60"}`} />
+                  <link.icon
+                    className={`h-5 w-5 mr-3 ${
+                      link.active ? "text-emerald-400" : "text-white/60"
+                    }`}
+                  />
                   <span>{link.name}</span>
-                  {link.active && <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+                  {link.active && (
+                    <div className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
                 </Link>
               ))}
             </div>
@@ -313,8 +408,10 @@ const ProboHeader = () => {
                     appearance={{
                       elements: {
                         userButtonAvatarBox: "w-12 h-12",
-                        userButtonTrigger: "flex flex-col items-center space-y-2",
-                        userButtonOuterIdentifier: "text-sm font-medium text-white",
+                        userButtonTrigger:
+                          "flex flex-col items-center space-y-2",
+                        userButtonOuterIdentifier:
+                          "text-sm font-medium text-white",
                       },
                     }}
                   />

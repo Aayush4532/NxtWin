@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
+import { SAMPLE } from "../../data/bids_data";
 
 export default function BidPage() {
   const { id } = useParams();
@@ -30,18 +31,51 @@ export default function BidPage() {
     async function load() {
       setLoadingMarket(true);
       try {
-        const res = await fetch(`/api/markets/${id}`);
-        if (res.ok) {
-          const j = await res.json();
-          setMarket(j);
-          const start = Math.max(1, Math.min(100, Math.round(j?.yesShare ?? 50)));
+        // First try to get data from the SAMPLE array
+        const foundMarket = SAMPLE.find((market) => market.id === id);
+
+        if (foundMarket) {
+          // Transform the data to match expected structure
+          const transformedMarket = {
+            id: foundMarket.id,
+            title: foundMarket.title,
+            category: foundMarket.category,
+            deadline: foundMarket.deadline,
+            optionA: foundMarket.optionA,
+            optionB: foundMarket.optionB,
+            yesShare: foundMarket.yesShare,
+            participants: foundMarket.participants,
+            volume: foundMarket.volume || foundMarket.amount * 1000,
+            context: `Market analysis for ${foundMarket.category.toLowerCase()} prediction`,
+            marketNews: `Recent activity shows ${foundMarket.participants} participants with ${foundMarket.yesShare}% confidence.`,
+            image: foundMarket.image,
+          };
+
+          setMarket(transformedMarket);
+          const start = Math.max(
+            1,
+            Math.min(100, Math.round(transformedMarket.yesShare ?? 50))
+          );
           setSliderValue(start);
           setExactAmt(start);
         } else {
-          const sm = sampleMarket();
-          setMarket(sm);
-          setSliderValue(50);
-          setExactAmt(50);
+          // Try API call as fallback
+          const res = await fetch(`/api/markets/${id}`);
+          if (res.ok) {
+            const j = await res.json();
+            setMarket(j);
+            const start = Math.max(
+              1,
+              Math.min(100, Math.round(j?.yesShare ?? 50))
+            );
+            setSliderValue(start);
+            setExactAmt(start);
+          } else {
+            const sm = sampleMarket();
+            setMarket(sm);
+            setSliderValue(50);
+            setExactAmt(50);
+          }
         }
       } catch {
         const sm = sampleMarket();
@@ -66,8 +100,14 @@ export default function BidPage() {
 
   useEffect(() => {
     const handle = (e) => {
-      document.documentElement.style.setProperty("--mx", `${(e.clientX / window.innerWidth) * 100}%`);
-      document.documentElement.style.setProperty("--my", `${(e.clientY / window.innerHeight) * 100}%`);
+      document.documentElement.style.setProperty(
+        "--mx",
+        `${(e.clientX / window.innerWidth) * 100}%`
+      );
+      document.documentElement.style.setProperty(
+        "--my",
+        `${(e.clientY / window.innerHeight) * 100}%`
+      );
     };
     window.addEventListener("pointermove", handle);
     return () => window.removeEventListener("pointermove", handle);
@@ -103,8 +143,11 @@ export default function BidPage() {
   const placeBid = (opt) => {
     if (!market) return;
     if (mode === "write") {
-      if (!writeText.trim()) return pulseMessage("Write something before posting");
-      pulseMessage(`Posted note on ${opt === "A" ? market.optionA : market.optionB}`);
+      if (!writeText.trim())
+        return pulseMessage("Write something before posting");
+      pulseMessage(
+        `Posted note on ${opt === "A" ? market.optionA : market.optionB}`
+      );
       setWriteText("");
       return;
     }
@@ -113,7 +156,9 @@ export default function BidPage() {
     if (!amt || amt <= 0) return pulseMessage("Enter a valid amount");
     if (amt > balance) return pulseMessage("Insufficient balance");
     setBalance((b) => b - amt);
-    pulseMessage(`Placed ₹${amt} on ${opt === "A" ? market.optionA : market.optionB}`);
+    pulseMessage(
+      `Placed ₹${amt} on ${opt === "A" ? market.optionA : market.optionB}`
+    );
   };
 
   const runAi = async () => {
@@ -155,7 +200,10 @@ export default function BidPage() {
     return (
       <div className="w-full bg-white/5 rounded-full h-3 overflow-hidden">
         <div
-          style={{ width: `${Math.max(0, Math.min(100, v))}%`, transition: "width 700ms cubic-bezier(.2,.9,.2,1)" }}
+          style={{
+            width: `${Math.max(0, Math.min(100, v))}%`,
+            transition: "width 700ms cubic-bezier(.2,.9,.2,1)",
+          }}
           className={`h-full bg-gradient-to-r ${from} ${to}`}
         />
       </div>
@@ -176,19 +224,36 @@ export default function BidPage() {
               {/* header with title + balance */}
               <div className="rounded-2xl p-6 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)] flex items-start justify-between gap-6">
                 <div className="flex-1 pr-6">
-                  <div className="text-sm text-emerald-300 font-medium">{market?.category ?? "Loading..."}</div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-2 text-slate-100">{loadingMarket ? "Loading market…" : market.title}</h1>
-                  <p className="mt-3 text-sm text-slate-300 max-w-prose">{market?.context}</p>
+                  <div className="text-sm text-emerald-300 font-medium">
+                    {market?.category ?? "Loading..."}
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-2 text-slate-100">
+                    {loadingMarket ? "Loading market…" : market?.title}
+                  </h1>
+                  <p className="mt-3 text-sm text-slate-300 max-w-prose">
+                    {market?.context}
+                  </p>
                   <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-300">
-                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]"> {market?.deadline ?? "—"} </div>
-                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">{market?.participants ?? 0} participants</div>
-                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">Vol ₹{(market?.volume ?? 0).toLocaleString()}</div>
+                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">
+                      {market?.deadline ?? "—"}
+                    </div>
+                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">
+                      {market?.participants ?? 0} participants
+                    </div>
+                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">
+                      Vol ₹
+                      {typeof market?.volume === "string"
+                        ? market.volume
+                        : (market?.volume ?? 0).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
                 <div className="w-72 text-right flex-shrink-0">
                   <div className="text-xs text-slate-400">Your balance</div>
-                  <div className="mt-1 text-2xl font-bold text-slate-100 transition-colors duration-200">{balance >= 0 ? `₹${balance.toFixed(2)}` : `-`}</div>
+                  <div className="mt-1 text-2xl font-bold text-slate-100 transition-colors duration-200">
+                    {balance >= 0 ? `₹${balance.toFixed(2)}` : `-`}
+                  </div>
                   <div className="mt-4 grid gap-2">
                     <button
                       onClick={() => {
@@ -277,9 +342,14 @@ export default function BidPage() {
 
               {/* discussion */}
               <div className="rounded-2xl p-6 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)]">
-                <h3 className="text-lg font-semibold text-slate-100">Discussion & Context</h3>
+                <h3 className="text-lg font-semibold text-slate-100">
+                  Discussion & Context
+                </h3>
                 <div className="mt-3 text-slate-300 leading-relaxed max-w-prose">
-                  This market bundles short-term news and available context. Place small bets to test the AI's edge, watch how the percentages react to new information, and keep your exposure controlled.
+                  This market bundles short-term news and available context.
+                  Place small bets to test the AI's edge, watch how the
+                  percentages react to new information, and keep your exposure
+                  controlled.
                 </div>
               </div>
             </div>
@@ -287,20 +357,38 @@ export default function BidPage() {
             {/* right column */}
             <aside className="space-y-6 sticky top-6 self-start">
               <div className="rounded-2xl p-5 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)] w-80">
-                <div className="text-sm text-emerald-300 font-medium">Market News</div>
-                <div className="mt-3 text-slate-300 text-sm">{market?.marketNews || "No recent news."}</div>
+                <div className="text-sm text-emerald-300 font-medium">
+                  Market News
+                </div>
+                <div className="mt-3 text-slate-300 text-sm">
+                  {market?.marketNews || "No recent news."}
+                </div>
                 <div className="mt-4 flex items-center gap-2 justify-between">
                   <div className="text-xs text-slate-400">Mode</div>
                   <div className="rounded-full bg-[rgba(255,255,255,0.03)] p-1 flex items-center">
-                    <button onClick={() => setMode("amount")} className={`px-3 py-1 rounded-full text-sm ${mode === "amount" ? "bg-[rgba(255,255,255,0.02)]" : ""}`}>
+                    <button
+                      onClick={() => setMode("amount")}
+                      className={`px-3 py-1 rounded-full text-sm ${
+                        mode === "amount" ? "bg-[rgba(255,255,255,0.02)]" : ""
+                      }`}
+                    >
                       Amount
                     </button>
-                    <button onClick={() => setMode("write")} className={`px-3 py-1 rounded-full text-sm ${mode === "write" ? "bg-[rgba(255,255,255,0.02)]" : ""}`}>
+                    <button
+                      onClick={() => setMode("write")}
+                      className={`px-3 py-1 rounded-full text-sm ${
+                        mode === "write" ? "bg-[rgba(255,255,255,0.02)]" : ""
+                      }`}
+                    >
                       Write
                     </button>
                   </div>
                 </div>
-                <button disabled={aiLoading} onClick={runAi} className="mt-4 w-full rounded-lg px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-400 font-semibold">
+                <button
+                  disabled={aiLoading}
+                  onClick={runAi}
+                  className="mt-4 w-full rounded-lg px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-400 font-semibold"
+                >
                   {aiLoading ? "Analyzing…" : "AI Analyze"}
                 </button>
               </div>
@@ -318,7 +406,12 @@ export default function BidPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div>Volume</div>
-                    <div>₹{(market?.volume ?? 0).toLocaleString()}</div>
+                    <div>
+                      ₹
+                      {typeof market?.volume === "string"
+                        ? market.volume
+                        : (market?.volume ?? 0).toLocaleString()}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>Expires</div>
@@ -332,7 +425,7 @@ export default function BidPage() {
                 <div className="mt-3 space-y-2 text-sm text-slate-300">
                   <div className="flex justify-between">
                     <span>Bid placed</span>
-                    <span>₹200</span>
+                    <span>₹{market?.amount ?? 200}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Market created</span>
@@ -360,9 +453,15 @@ export default function BidPage() {
                     className="min-w-[380px] p-6 rounded-xl bg-[rgba(10,12,16,0.65)] border border-[rgba(255,255,255,0.03)] backdrop-blur-md transform transition hover:-translate-y-1"
                   >
                     <div className="text-xs text-slate-400">Bid #{i + 1}</div>
-                    <div className="mt-3 font-semibold text-slate-100">{i % 2 === 0 ? market?.optionA : market?.optionB}</div>
-                    <div className="mt-1 text-sm text-slate-300">Amount: ₹{(i + 1) * 75}</div>
-                    <div className="mt-3 text-xs text-slate-400">By user{(i + 1)}</div>
+                    <div className="mt-3 font-semibold text-slate-100">
+                      {i % 2 === 0 ? market?.optionA : market?.optionB}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-300">
+                      Amount: ₹{(i + 1) * 75}
+                    </div>
+                    <div className="mt-3 text-xs text-slate-400">
+                      By user{i + 1}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -425,9 +524,17 @@ function OptionCard({
       <div className="flex items-start justify-between gap-5">
         <div className="flex-1 pr-4">
           <div className="text-xs text-slate-400">Option {side}</div>
-          <div className="text-2xl font-semibold mt-1 text-slate-100">{side === "A" ? market?.optionA : market?.optionB}</div>
+          <div className="text-2xl font-semibold mt-1 text-slate-100">
+            {side === "A" ? market?.optionA : market?.optionB}
+          </div>
 
-          <div className="mt-4">{percentVisual(percent, side === "A" ? "from-teal-400" : "from-indigo-500", side === "A" ? "to-blue-500" : "to-purple-500")}</div>
+          <div className="mt-4">
+            {percentVisual(
+              percent,
+              side === "A" ? "from-teal-400" : "from-indigo-500",
+              side === "A" ? "to-blue-500" : "to-purple-500"
+            )}
+          </div>
 
           <div className="mt-5">
             {mode === "amount" ? (
@@ -468,14 +575,21 @@ function OptionCard({
                     />
 
                     {showTip && (
-                      <div className="pointer-events-none absolute -top-10" style={{ left: tipLeft, transform: "translateX(-50%)" }}>
-                        <div className="px-2 py-1 rounded-md bg-[rgba(6,8,12,0.9)] border border-[rgba(255,255,255,0.04)] text-xs">₹{sliderValue}</div>
+                      <div
+                        className="pointer-events-none absolute -top-10"
+                        style={{ left: tipLeft, transform: "translateX(-50%)" }}
+                      >
+                        <div className="px-2 py-1 rounded-md bg-[rgba(6,8,12,0.9)] border border-[rgba(255,255,255,0.04)] text-xs">
+                          ₹{sliderValue}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-400 mt-3">Placing ₹{exactAmt}</div>
+                <div className="text-xs text-slate-400 mt-3">
+                  Placing ₹{exactAmt}
+                </div>
               </>
             ) : (
               <input
@@ -492,11 +606,20 @@ function OptionCard({
 
         <div className="w-44 flex-shrink-0 flex flex-col items-center gap-4">
           <div className="flex items-center gap-2">
-            <input type="radio" name="side" checked={selected === side} onChange={onSelect} className="accent-emerald-400 w-4 h-4" />
+            <input
+              type="radio"
+              name="side"
+              checked={selected === side}
+              onChange={onSelect}
+              className="accent-emerald-400 w-4 h-4"
+            />
             <span className="text-sm text-slate-300">Select</span>
           </div>
 
-          <button onClick={placeBid} className="w-full rounded-lg px-4 py-2 bg-gradient-to-r from-teal-400 to-cyan-500 font-semibold shadow">
+          <button
+            onClick={placeBid}
+            className="w-full rounded-lg px-4 py-2 bg-gradient-to-r from-teal-400 to-cyan-500 font-semibold shadow"
+          >
             {mode === "amount" ? "Place" : "Post"}
           </button>
         </div>
