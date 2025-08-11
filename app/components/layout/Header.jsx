@@ -80,15 +80,9 @@ const ProboHeader = () => {
       active: pathname.startsWith("/bid"),
     },
     {
-      name: "Portfolio",
-      icon: Briefcase,
-      href: "/portfolio",
-      active: pathname.startsWith("/portfolio"),
-    },
-    {
-      name: "Markets",
+      name: "Simulator",
       icon: BarChart,
-      href: "/markets",
+      href: "/simulator",
       active: pathname.startsWith("/markets"),
     },
   ];
