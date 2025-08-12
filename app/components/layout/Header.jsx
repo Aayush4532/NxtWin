@@ -6,15 +6,11 @@ import { usePathname } from "next/navigation";
 import {
   Search,
   Bell,
-  Wallet,
   Menu,
   X,
-  ChevronDown,
-  ChevronUp,
   BarChart,
   Home,
   Briefcase,
-  CreditCard,
   Gavel,
   User,
 } from "lucide-react";
@@ -30,12 +26,8 @@ const ProboHeader = () => {
   const pathname = usePathname() || "/";
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [userBalance, setUserBalance] = useState(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  const walletDropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
   // Prevent hydration mismatch by ensuring client-side rendering
@@ -43,66 +35,9 @@ const ProboHeader = () => {
     setIsClient(true);
   }, []);
 
-  // Fetch user balance when user is loaded
-  useEffect(() => {
-    const fetchUserBalance = async () => {
-      if (isSignedIn && user?.id) {
-        setIsLoadingBalance(true);
-        try {
-          const response = await fetch(
-            `http://localhost:5500/api/get/user/${user.id}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setUserBalance(data.user.balance);
-          } else {
-            console.error("Failed to fetch user balance");
-            setUserBalance(0); // Default to 0 if fetch fails
-          }
-        } catch (error) {
-          console.error("Error fetching user balance:", error);
-          setUserBalance(0); // Default to 0 if fetch fails
-        } finally {
-          setIsLoadingBalance(false);
-        }
-      }
-    };
-
-    fetchUserBalance();
-  }, [isSignedIn, user?.id]);
-
-  // Format balance for display
-  const formatBalance = (balance) => {
-    if (balance === null || balance === undefined) return "₹0.00";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: 2,
-    }).format(balance);
-  };
-
-  // Close dropdowns if click outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        walletDropdownRef.current &&
-        !walletDropdownRef.current.contains(e.target)
-      ) {
-        setIsWalletDropdownOpen(false);
-      }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
-        // don't auto-close mobile menu here to avoid accidental closes while interacting inside header;
-        // keep only wallet dropdown auto-close. (optional)
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Close menus on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
-    setIsWalletDropdownOpen(false);
   }, [pathname]);
 
   // Close on Escape
@@ -110,7 +45,6 @@ const ProboHeader = () => {
     const onKey = (e) => {
       if (e.key === "Escape") {
         setIsMobileMenuOpen(false);
-        setIsWalletDropdownOpen(false);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -130,33 +64,6 @@ const ProboHeader = () => {
       icon: BarChart,
       href: "/simulator",
       active: pathname.startsWith("/markets"),
-    },
-  ];
-
-  const walletOptions = [
-    {
-      name: "Deposit Funds",
-      icon: CreditCard,
-      action: () => {
-        console.log("Deposit");
-        setIsWalletDropdownOpen(false);
-      },
-    },
-    {
-      name: "Withdraw",
-      icon: Wallet,
-      action: () => {
-        console.log("Withdraw");
-        setIsWalletDropdownOpen(false);
-      },
-    },
-    {
-      name: "Transaction History",
-      icon: BarChart,
-      action: () => {
-        console.log("History");
-        setIsWalletDropdownOpen(false);
-      },
     },
   ];
 
@@ -232,7 +139,7 @@ const ProboHeader = () => {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all group ₹{
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all group ${
                   link.active
                     ? "text-white bg-white/10 shadow-inner shadow-white/5"
                     : "text-white/70 hover:text-white hover:bg-white/10"
@@ -271,63 +178,6 @@ const ProboHeader = () => {
 
           {/* Right: actions */}
           <div className="flex items-center space-x-3">
-            {/* Wallet dropdown - only show when signed in */}
-            {shouldShowAuthContent && isSignedIn && (
-              <div className="relative hidden md:block" ref={walletDropdownRef}>
-                <button
-                  onClick={() => setIsWalletDropdownOpen((s) => !s)}
-                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/15 transition-all group"
-                  aria-label="Wallet"
-                  aria-haspopup="true"
-                  aria-expanded={isWalletDropdownOpen}
-                >
-                  <div className="relative">
-                    <Wallet className="h-5 w-5 text-emerald-400 group-hover:text-emerald-300" />
-                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-black" />
-                  </div>
-                  <span className="text-sm font-medium text-white">
-                    {isLoadingBalance
-                      ? "Loading..."
-                      : formatBalance(userBalance)}
-                  </span>
-                  {isWalletDropdownOpen ? (
-                    <ChevronUp className="h-4 w-4 text-white/70" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-white/70" />
-                  )}
-                </button>
-
-                {isWalletDropdownOpen && (
-                  <div
-                    className="absolute right-0 mt-2 w-64 origin-top-right rounded-xl bg-gradient-to-b from-white/8 to-transparent backdrop-blur-2xl border border-white/5 shadow-2xl shadow-black/50 ring-1 ring-black/5 p-2 z-50 overflow-hidden"
-                    role="menu"
-                    aria-label="Wallet menu"
-                  >
-                    <div className="p-3 border-b border-white/5">
-                      <p className="text-xs text-white/60">Total Balance</p>
-                      <p className="text-lg font-bold text-white">
-                        {isLoadingBalance
-                          ? "Loading..."
-                          : formatBalance(userBalance)}
-                      </p>
-                    </div>
-
-                    {walletOptions.map((option) => (
-                      <button
-                        key={option.name}
-                        onClick={option.action}
-                        className="flex items-center w-full text-left px-3 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                        role="menuitem"
-                      >
-                        <option.icon className="h-4 w-4 mr-3 text-emerald-400" />
-                        <span>{option.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Notifications - only show when signed in */}
             {shouldShowAuthContent && isSignedIn && (
               <button
@@ -447,26 +297,6 @@ const ProboHeader = () => {
             </div>
 
             <div className="p-3 border-t border-white/5">
-              {/* Mobile wallet section - only show when signed in */}
-              {shouldShowAuthContent && isSignedIn && (
-                <div className="flex items-center justify-between px-3 py-3 rounded-lg bg-white/6 mb-3">
-                  <div className="flex items-center">
-                    <Wallet className="h-5 w-5 text-emerald-400 mr-3" />
-                    <div>
-                      <p className="text-xs text-white/60">Wallet Balance</p>
-                      <p className="text-sm font-medium text-white">
-                        {isLoadingBalance
-                          ? "Loading..."
-                          : formatBalance(userBalance)}
-                      </p>
-                    </div>
-                  </div>
-                  <button className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg border border-emerald-500/20">
-                    Manage
-                  </button>
-                </div>
-              )}
-
               {shouldShowAuthContent ? (
                 isSignedIn ? (
                   <div className="flex justify-center">

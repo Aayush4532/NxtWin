@@ -167,64 +167,7 @@ export default function Page() {
               ))}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="text-xs text-slate-400 mb-2">Min Volume</div>
-                <input
-                  type="range"
-                  min={0}
-                  max={5000}
-                  value={minAmount}
-                  onChange={(e) => setMinAmount(Number(e.target.value))}
-                  className="w-full accent-emerald-400"
-                />
-                <div className="mt-1 text-right text-xs text-slate-400">
-                  ₹{minAmount}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="text-xs text-slate-400 mb-2">Max Volume</div>
-
-                <input
-                  type="range"
-                  min={0}
-                  max={5000}
-                  value={maxAmount}
-                  onChange={(e) => setMaxAmount(Number(e.target.value))}
-                  className="w-full accent-emerald-400"
-                />
-                <div className="mt-1 flex justify-between text-xs text-slate-400">
-                  <span>₹0</span>
-                  <span>₹{maxAmount}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="text-xs text-slate-400 mb-2">Quick tags</div>
-                <div className="flex flex-wrap gap-2">
-                  <Chip
-                    onClick={() => {
-                      setMinAmount(0);
-                      setMaxAmount(500);
-                    }}
-                    label="Low stake"
-                  />
-                  <Chip
-                    onClick={() => {
-                      setMinAmount(500);
-                      setMaxAmount(1500);
-                    }}
-                    label="Medium"
-                  />
-                  <Chip
-                    onClick={() => {
-                      setMinAmount(1500);
-                      setMaxAmount(5000);
-                    }}
-                    label="High stake"
-                  />
-                </div>
-              </div>
-            </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4"></div>
           </div>
         </div>
       </div>

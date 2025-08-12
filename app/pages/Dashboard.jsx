@@ -2,7 +2,6 @@
 
 import { useUser } from "@clerk/clerk-react";
 import { useEffect } from "react";
-
 import Header from "../components/layout/Header";
 import Hero from "../components/sections/Hero";
 import Categories from "../components/sections/Categories";
