@@ -1,33 +1,30 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { SAMPLE } from "../../data/bids_data";
 import SpotlightCard from "../../components/SpotlightCard";
 import {
-  calculateMarketPrices,
   incrementPrice,
   decrementPrice,
   formatPrice,
   PRICING_CONFIG,
 } from "../../utils/pricing";
 
-// The updated OrderPanel component
+// The updated OrderPanel component with backend data
 function OrderPanel({ market, balance, setBalance, pulseMessage }) {
   const [selectedOption, setSelectedOption] = useState("YES"); // 'YES' or 'NO'
   const [quantity, setQuantity] = useState(1);
   const [customPrice, setCustomPrice] = useState(null); // null means use market price
 
-  // Calculate default market prices using centralized utility
-  const marketPrices = market
-    ? calculateMarketPrices(market.yesShare)
-    : { yes: 0.5, no: 0.5 };
+  // Use yesPrice from backend and calculate noPrice
+  const yesPrice = market?.yesPrice || 5;
+  const noPrice = 10 - yesPrice;
 
   // Get current price (custom or market)
   const getCurrentPrice = () => {
     if (customPrice !== null) {
       return customPrice;
     }
-    return selectedOption === "YES" ? marketPrices.yes : marketPrices.no;
+    return selectedOption === "YES" ? yesPrice : noPrice;
   };
 
   const currentPrice = getCurrentPrice();
@@ -57,8 +54,7 @@ function OrderPanel({ market, balance, setBalance, pulseMessage }) {
     if (cost > balance) return pulseMessage("Insufficient balance");
 
     setBalance((b) => b - cost);
-    const optionText =
-      selectedOption === "YES" ? market.optionA : market.optionB;
+    const optionText = selectedOption === "YES" ? "Yes" : "No";
     const priceType = customPrice !== null ? "custom" : "market";
     pulseMessage(
       `Placed ₹${cost.toFixed(2)} on ${optionText} at ${priceType} price`
@@ -91,7 +87,7 @@ function OrderPanel({ market, balance, setBalance, pulseMessage }) {
               : "bg-green-500/10 text-green-300 hover:bg-green-500/20"
           }`}
         >
-          YES - ₹{formatPrice(marketPrices.yes)}
+          YES - ₹{formatPrice(yesPrice)}
         </button>
         <button
           onClick={() => handleOptionChange("NO")}
@@ -101,7 +97,7 @@ function OrderPanel({ market, balance, setBalance, pulseMessage }) {
               : "bg-red-500/10 text-red-300 hover:bg-red-500/20"
           }`}
         >
-          NO - ₹{formatPrice(marketPrices.no)}
+          NO - ₹{formatPrice(noPrice)}
         </button>
       </div>
 
@@ -191,10 +187,7 @@ function OrderPanel({ market, balance, setBalance, pulseMessage }) {
         {customPrice !== null && (
           <div className="text-xs text-amber-400 mt-1">
             Using custom price (Market: ₹
-            {formatPrice(
-              selectedOption === "YES" ? marketPrices.yes : marketPrices.no
-            )}
-            )
+            {formatPrice(selectedOption === "YES" ? yesPrice : noPrice)})
           </div>
         )}
       </div>
@@ -211,7 +204,7 @@ function OrderPanel({ market, balance, setBalance, pulseMessage }) {
   );
 }
 
-// AIResultsCard component (restored)
+// AIResultsCard component (kept as is)
 function AIResultsCard({ result }) {
   const getWinnerColor = (winner) => {
     if (winner === "A") return "#10b981"; // Green
@@ -302,48 +295,59 @@ export default function BidPage() {
     }
   });
   const [message, setMessage] = useState(null);
-  // Restored AI state
+  // AI state (kept as is)
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const mount = useRef(false);
 
   useEffect(() => {
     mount.current = true;
-    async function load() {
+
+    async function loadData() {
       setLoadingMarket(true);
       try {
-        const foundMarket = SAMPLE.find((market) => market.id === id);
-        if (foundMarket) {
+        // Fetch from backend API
+        const response = await fetch(`http://localhost:5500/api/get/bid/${id}`);
+        const data = await response.json();
+
+        if (mount.current && data.bid) {
+          // Transform backend data to match frontend format
           const transformedMarket = {
-            id: foundMarket.id,
-            title: foundMarket.title,
-            category: foundMarket.category,
-            deadline: foundMarket.deadline,
-            optionA: foundMarket.optionA,
-            optionB: foundMarket.optionB,
-            yesShare: foundMarket.yesShare,
-            participants: foundMarket.participants,
-            volume: foundMarket.volume || foundMarket.amount * 1000,
-            context: `Market analysis for ${foundMarket.category.toLowerCase()} prediction`,
-            marketNews: `Recent activity shows ${foundMarket.participants} participants with ${foundMarket.yesShare}% confidence.`,
-            image: foundMarket.image,
+            id: data.bid._id,
+            title: data.bid.question, // Use question as title
+            category: data.bid.category,
+            yesPrice: data.bid.yesPrice,
+            volume: data.bid.volume,
+            endTime: data.bid.endTime,
+            image: data.bid.image,
+            createdAt: data.bid.createdAt,
+            updatedAt: data.bid.updatedAt,
+            // Calculate deadline from endTime
+            deadline:
+              new Date(data.bid.endTime) > new Date()
+                ? `Ends ${new Date(data.bid.endTime).toLocaleDateString()}`
+                : "Expired",
+            // Add context and marketNews for AI analysis
+            context: `Market analysis for ${data.bid.category.toLowerCase()} prediction`,
+            marketNews: `Current Yes price: ₹${data.bid.yesPrice}, Volume: ₹${data.bid.volume}`,
+            // For AI analysis compatibility
+            optionA: "Yes",
+            optionB: "No",
           };
           setMarket(transformedMarket);
-        } else {
-          const res = await fetch(`/api/markets/${id}`);
-          if (res.ok) {
-            setMarket(await res.json());
-          } else {
-            setMarket(sampleMarket());
-          }
         }
-      } catch {
-        setMarket(sampleMarket());
+      } catch (error) {
+        console.error("Error loading data:", error);
+        if (mount.current) {
+          pulseMessage("Failed to load market data");
+        }
       } finally {
         if (mount.current) setLoadingMarket(false);
       }
     }
-    load();
+
+    loadData();
+
     return () => {
       mount.current = false;
     };
@@ -370,28 +374,12 @@ export default function BidPage() {
     return () => window.removeEventListener("pointermove", handle);
   }, []);
 
-  function sampleMarket() {
-    return {
-      id,
-      title: "Will XYZ win the match?",
-      category: "Sports",
-      deadline: "Closes in 3h 24m",
-      optionA: "Team XYZ",
-      optionB: "Team ABC",
-      yesShare: 62,
-      participants: 2412,
-      volume: 425000,
-      context: "Head-to-head, injuries, home advantage",
-      marketNews: "Recent lineups show XYZ missing a key player.",
-    };
-  }
-
   const pulseMessage = (txt) => {
     setMessage(txt);
     setTimeout(() => setMessage(null), 3000);
   };
 
-  // Restored runAi function
+  // AI function (kept as is)
   const runAi = async () => {
     if (!market) return;
     setAiLoading(true);
@@ -449,9 +437,6 @@ export default function BidPage() {
                     <div className="text-sm text-emerald-300 font-medium mb-2">
                       📰 Market News
                     </div>
-                    <div className="text-slate-300 text-sm leading-relaxed">
-                      {market?.marketNews || "No recent news available."}
-                    </div>
                   </div>
 
                   <p className="mt-4 text-sm text-slate-300 max-w-prose">
@@ -462,7 +447,11 @@ export default function BidPage() {
                       {market?.deadline ?? "—"}
                     </div>
                     <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">
-                      {market?.participants ?? 0} participants
+                      Yes Price: ₹{market?.yesPrice ?? "—"}
+                    </div>
+                    <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">
+                      No Price: ₹
+                      {market ? (10 - market.yesPrice).toFixed(2) : "—"}
                     </div>
                     <div className="px-3 py-1 rounded-full bg-[rgba(255,255,255,0.03)]">
                       Vol ₹{(market?.volume ?? 0).toLocaleString()}
@@ -490,7 +479,7 @@ export default function BidPage() {
                 </div>
               </div>
 
-              {/* AI Analysis Section */}
+              {/* AI Analysis Section (kept as is) */}
               <div className="rounded-2xl p-6 bg-[rgba(8,10,15,0.55)] border border-[rgba(255,255,255,0.03)]">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -562,7 +551,7 @@ export default function BidPage() {
 
             {/* Right column - Order panel and stats */}
             <aside className="space-y-6 sticky top-6 self-start">
-              {/* Order Panel moved here */}
+              {/* Order Panel */}
               <OrderPanel
                 market={market}
                 balance={balance}
@@ -583,9 +572,15 @@ export default function BidPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div>Participants</div>
-                    <div className="font-semibold">
-                      {market?.participants ?? 0}
+                    <div>Yes Price</div>
+                    <div className="font-semibold text-green-400">
+                      ₹{market?.yesPrice ?? "—"}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>No Price</div>
+                    <div className="font-semibold text-red-400">
+                      ₹{market ? (10 - market.yesPrice).toFixed(2) : "—"}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -610,18 +605,26 @@ export default function BidPage() {
                 </div>
                 <div className="space-y-3 text-sm text-slate-300">
                   <div className="flex justify-between items-center">
-                    <span>Bid placed</span>
-                    <span className="text-green-400 font-semibold">
-                      ₹{market?.amount ?? 200}
+                    <span>Market created</span>
+                    <span className="text-slate-400">
+                      {market?.createdAt
+                        ? new Date(market.createdAt).toLocaleDateString()
+                        : "—"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Market created</span>
-                    <span className="text-slate-400">2h ago</span>
+                    <span>Last updated</span>
+                    <span className="text-slate-400">
+                      {market?.updatedAt
+                        ? new Date(market.updatedAt).toLocaleDateString()
+                        : "—"}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>AI update</span>
-                    <span className="text-amber-400">5m ago</span>
+                    <span>Current volume</span>
+                    <span className="text-emerald-400">
+                      ₹{market?.volume ?? 0}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -642,7 +645,7 @@ export default function BidPage() {
                   >
                     <div className="text-xs text-slate-400">Bid #{i + 1}</div>
                     <div className="mt-3 font-semibold text-slate-100">
-                      {i % 2 === 0 ? market?.optionA : market?.optionB}
+                      {i % 2 === 0 ? "Yes" : "No"}
                     </div>
                     <div className="mt-1 text-sm text-slate-300">
                       Amount: ₹{(i + 1) * 75}

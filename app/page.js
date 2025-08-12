@@ -1,4 +1,5 @@
 "use client";
+
 import Home from "./components/Home";
 import DashBoard from "./pages/Dashboard";
 import { useUser, UserButton } from "@clerk/nextjs";

@@ -94,7 +94,6 @@ export default function SignUpPage() {
                 footerActionLink: { color: "#60a5fa" },
               },
             }}
-            redirectUrl="/"
             signInUrl="/sign-in"
           />
         </div>
