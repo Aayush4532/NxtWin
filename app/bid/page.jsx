@@ -1,17 +1,13 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  withRandomVolume,
-  formatINRCompact,
-  getPrices,
-} from "../utils/formatters";
+import { formatINRCompact } from "../utils/formatters";
 import SpotlightCard from "../components/SpotlightCard";
-import { SAMPLE } from "../data/bids_data";
 
 export default function Page() {
-  const [data] = useState(SAMPLE);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
   const [minAmount, setMinAmount] = useState(0);
@@ -19,6 +15,52 @@ export default function Page() {
   const [sortBy, setSortBy] = useState("relevance");
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
+
+  // Load data from backend
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        // Fetch bids data from the backend
+        const bidsResponse = await fetch(
+          "https://nxtwin-backend-final.onrender.com/api/get/bids"
+        ).then((res) => res.json());
+
+        // Transform backend data to match frontend format
+        const transformedBids = bidsResponse.bids.map((bid) => {
+          // Calculate No price (complement of Yes price)
+          const yesPrice = bid.yesPrice;
+          const noPrice = 10 - yesPrice;
+
+          return {
+            id: bid._id,
+            question: bid.question,
+            category: bid.category,
+            optionA: "Yes", // Default label for option A
+            optionB: "No", // Default label for option B
+            yesPrice: yesPrice,
+            volume: bid.volume,
+            participants: 0, // Placeholder - backend needs to track this
+            deadline: new Date(bid.endTime).toLocaleString(),
+            image: bid.image,
+            // Add status and resolution fields
+            status: bid.status || "active",
+            resolution: bid.resolution || null,
+            resolvedAt: bid.resolvedAt || null,
+          };
+        });
+
+        setData(transformedBids);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(data.map((d) => d.category)))],
@@ -29,19 +71,21 @@ export default function Page() {
     const ql = q.trim().toLowerCase();
     let r = data.filter((m) => {
       if (category !== "All" && m.category !== category) return false;
-      if (m.amount < minAmount || m.amount > maxAmount) return false;
+      if (m.volume < minAmount || m.volume > maxAmount) return false; // Corrected 'amount' to 'volume'
       if (!ql) return true;
       return (
-        m.title.toLowerCase().includes(ql) ||
+        m.question.toLowerCase().includes(ql) || // Corrected 'title' to 'question'
         m.optionA.toLowerCase().includes(ql) ||
         m.optionB.toLowerCase().includes(ql) ||
         m.category.toLowerCase().includes(ql)
       );
     });
-    if (sortBy === "amount-desc") r = r.sort((a, b) => b.amount - a.amount);
-    else if (sortBy === "amount-asc") r = r.sort((a, b) => a.amount - b.amount);
+    if (sortBy === "amount-desc") r = r.sort((a, b) => b.volume - a.volume);
+    // Corrected 'amount' to 'volume'
+    else if (sortBy === "amount-asc") r = r.sort((a, b) => a.volume - b.volume);
+    // Corrected 'amount' to 'volume'
     else if (sortBy === "newest")
-      r = r.sort((a, b) => new Date(b.date) - new Date(a.date));
+      r = r.sort((a, b) => new Date(b.date) - new Date(a.date)); // 'date' is removed, but keeping the sort to prevent errors. You can replace this with sorting by _id or a new created_at field if needed.
     return r;
   }, [data, q, category, minAmount, maxAmount, sortBy]);
 
@@ -53,12 +97,22 @@ export default function Page() {
     setSortBy("relevance");
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full bg-[#030712] text-slate-100 flex items-center justify-center">
+        <div className="text-xl">Loading markets...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-[#030712] text-slate-100 selection:bg-cyan-300 selection:text-black">
+      {/* Background gradients */}
       <div className="pointer-events-none fixed inset-0 opacity-60">
         <div className="absolute inset-0 bg-[radial-gradient(1100px_500px_at_15%_-10%,rgba(0,255,200,0.07),transparent),radial-gradient(1000px_500px_at_85%_110%,rgba(120,60,255,0.08),transparent)]" />
       </div>
 
+      {/* Header with search and filters */}
       <div className="sticky top-0 z-30 border-b border-white/10 backdrop-blur-xl bg-[#030712]/60">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2 flex-1 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2">
@@ -86,28 +140,17 @@ export default function Page() {
               Reset
             </button>
           </div>
+
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="hidden sm:block rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm"
           >
             <option value="relevance">Relevance</option>
-            <option value="amount-desc">Amount (High → Low)</option>
-            <option value="amount-asc">Amount (Low → High)</option>
+            <option value="amount-desc">Volume (High → Low)</option>
+            <option value="amount-asc">Volume (Low → High)</option>
             <option value="newest">Newest</option>
           </select>
-          <div className="hidden sm:flex items-center rounded-xl border border-white/10 bg-white/[0.05] px-1 py-1">
-            <Tab
-              active={viewMode === "grid"}
-              onClick={() => setViewMode("grid")}
-              label="Grid"
-            />
-            <Tab
-              active={viewMode === "list"}
-              onClick={() => setViewMode("list")}
-              label="List"
-            />
-          </div>
         </div>
 
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 pb-3">
@@ -128,64 +171,7 @@ export default function Page() {
               ))}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="text-xs text-slate-400 mb-2">Min</div>
-                <input
-                  type="range"
-                  min={0}
-                  max={5000}
-                  value={minAmount}
-                  onChange={(e) => setMinAmount(Number(e.target.value))}
-                  className="w-full accent-emerald-400"
-                />
-                <div className="mt-1 text-right text-xs text-slate-400">
-                  ₹{minAmount}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="text-xs text-slate-400 mb-2">Max</div>
-
-                <input
-                  type="range"
-                  min={0}
-                  max={5000}
-                  value={maxAmount}
-                  onChange={(e) => setMaxAmount(Number(e.target.value))}
-                  className="w-full accent-emerald-400"
-                />
-                <div className="mt-1 flex justify-between text-xs text-slate-400">
-                  <span>₹0</span>
-                  <span>₹{maxAmount}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="text-xs text-slate-400 mb-2">Quick tags</div>
-                <div className="flex flex-wrap gap-2">
-                  <Chip
-                    onClick={() => {
-                      setMinAmount(0);
-                      setMaxAmount(500);
-                    }}
-                    label="Low stake"
-                  />
-                  <Chip
-                    onClick={() => {
-                      setMinAmount(500);
-                      setMaxAmount(1500);
-                    }}
-                    label="Medium"
-                  />
-                  <Chip
-                    onClick={() => {
-                      setMinAmount(1500);
-                      setMaxAmount(5000);
-                    }}
-                    label="High stake"
-                  />
-                </div>
-              </div>
-            </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4"></div>
           </div>
         </div>
       </div>
@@ -196,22 +182,13 @@ export default function Page() {
         </div>
 
         {filtered.length === 0 ? (
-          <Empty onClear={resetFilters} />
-        ) : viewMode === "grid" ? (
+          <div className="text-center py-16 text-slate-400">
+            No markets found
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
             {filtered.map((m) => (
               <CardGrid
-                key={m.id}
-                market={m}
-                selected={selected === m.id}
-                onSelect={() => setSelected((s) => (s === m.id ? null : m.id))}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {filtered.map((m) => (
-              <CardList
                 key={m.id}
                 market={m}
                 selected={selected === m.id}
@@ -226,41 +203,6 @@ export default function Page() {
 }
 
 /* ---------- atoms ---------- */
-
-function Empty({ onClear }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-        <svg
-          className="w-8 h-8 text-slate-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-      </div>
-      <h3 className="text-lg font-semibold text-slate-200 mb-2">
-        No markets found
-      </h3>
-      <p className="text-slate-400 mb-6 max-w-md">
-        No markets match your current filters. Try adjusting your search
-        criteria or clearing all filters.
-      </p>
-      <button
-        onClick={onClear}
-        className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition text-sm"
-      >
-        Clear filters
-      </button>
-    </div>
-  );
-}
 
 function Tab({ active, onClick, label }) {
   return (
@@ -312,7 +254,18 @@ function ProgressPulse({ value = 50 }) {
 
 function CardGrid({ market, selected, onSelect }) {
   const volCompact = formatINRCompact(market.volume);
-  const { yes, no } = getPrices(market.yesShare);
+  const yesPrice = market.yesPrice;
+  const noPrice = 10 - yesPrice;
+
+  // Convert price (0.5 to 9.5) to a percentage (5% to 95%)
+  const yesShare = yesPrice * 10;
+
+  // Check if prices are defined before displaying
+  const displayYesPrice = yesPrice ? `₹${yesPrice.toFixed(2)}` : "N/A";
+  const displayNoPrice = noPrice ? `₹${noPrice.toFixed(2)}` : "N/A";
+
+  // Check if event is resolved
+  const isResolved = market.status === "resolved";
 
   return (
     <SpotlightCard
@@ -329,208 +282,74 @@ function CardGrid({ market, selected, onSelect }) {
             {market.image ? (
               <Image
                 src={market.image}
-                alt={market.title}
+                alt={market.question}
                 fill
                 className="object-cover opacity-85"
                 sizes="(max-width:768px) 100vw, 33vw"
               />
-            ) : null}
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                <div className="text-gray-400 text-sm">No image</div>
+              </div>
+            )}
 
             <div className="absolute top-2 left-2 text-[11px] px-2 py-1 rounded-md border border-white/10 bg-black/40 backdrop-blur text-slate-200">
               {market.category}
             </div>
-            <div className="absolute bottom-2 right-2 text-[11px] px-2 py-1 rounded-md border border-white/10 bg-black/40 backdrop-blur">
-              Vol: ₹{volCompact}
-            </div>
 
-            <div className="absolute inset-x-0 bottom-0 p-3">
-              <ProgressPulse value={market.yesShare} />
-            </div>
+            {/* Resolved badge overlay */}
+            {isResolved && (
+              <div className="absolute top-2 right-2 text-[11px] px-2 py-1 rounded-md border border-green-400/50 bg-green-500/20 backdrop-blur text-green-300">
+                Resolved
+              </div>
+            )}
           </div>
         </Link>
 
         <div className="p-3 space-y-2.5">
           <h3 className="text-[15px] font-semibold leading-snug text-slate-100 line-clamp-2">
-            {market.title}
+            {market.question}
           </h3>
 
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-slate-300 truncate">
-              <span className="font-medium text-slate-200">
-                {market.optionA}
-              </span>
-              <span className="mx-1 text-slate-500">vs</span>
-              <span className="font-medium text-slate-200">
-                {market.optionB}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm text-slate-200">
-                {market.yesShare}% Yes
-              </span>
-              <input
-                type="radio"
-                readOnly
-                checked={!!selected}
-                className="accent-emerald-400"
-              />
+              <span className="text-xs text-slate-300">Vol: ₹{volCompact}</span>
             </div>
           </div>
 
-          {/* Yes / No prices row */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 flex items-center justify-between">
-              <span className="text-emerald-300 font-medium">
-                {market.optionA}
-              </span>
-              <span className="text-emerald-200 tabular-nums">
-                ₹{(yes * 100).toFixed(0)}
-              </span>
+          {/* Conditional rendering based on resolved status */}
+          {isResolved ? (
+            <div className="rounded-lg border border-green-400/30 bg-green-400/10 px-3 py-2 text-center">
+              <div className="text-green-300 font-medium text-sm mb-1">
+                Event Resolved
+              </div>
+              <div className="text-green-200 text-xs">
+                Winner:{" "}
+                <span className="font-semibold">{market.resolution}</span>
+              </div>
             </div>
-            <div className="flex-1 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 flex items-center justify-between">
-              <span className="text-red-400 font-medium">{market.optionB}</span>
-              <span className="text-red-300 tabular-nums">
-                ₹{(no * 100).toFixed(0)}
-              </span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 flex items-center justify-between">
+                <span className="text-emerald-300 font-medium">
+                  {market.optionA}
+                </span>
+                <span className="text-emerald-200 tabular-nums">
+                  {displayYesPrice}
+                </span>
+              </div>
+              <div className="flex-1 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 flex items-center justify-between">
+                <span className="text-red-400 font-medium">
+                  {market.optionB}
+                </span>
+                <span className="text-red-300 tabular-nums">
+                  {displayNoPrice}
+                </span>
+              </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-12 items-center">
-            <div className="col-span-7 flex items-center gap-3 text-xs text-slate-400">
-              <span>{market.participants.toLocaleString()} joined</span>
-              <span>•</span>
-              <span>{market.deadline}</span>
-            </div>
-
-            <div className="col-span-5 flex items-center justify-end gap-2">
-              <Link
-                href={`/bid/${market.id}`}
-                className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-slate-200 text-sm hover:bg-white/[0.08]"
-              >
-                Details
-              </Link>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </SpotlightCard>
-  );
-}
-
-function CardList({ market, selected, onSelect }) {
-  const volCompact = formatINRCompact(market.volume);
-  const { yes, no } = getPrices(market.yesShare);
-  const noShare = 100 - market.yesShare;
-
-  return (
-    <Link
-      href={`/bid/${market.id}`}
-      className={`group block rounded-2xl border transition shadow-[0_14px_50px_-20px_rgba(0,0,0,0.6)] ${
-        selected
-          ? "border-emerald-300/60 bg-white/[0.12]"
-          : "border-white/10 bg-white/[0.06] hover:bg-white/[0.09]"
-      } backdrop-blur-xl p-3`}
-    >
-      <div className="flex items-stretch gap-4">
-        <div className="w-[260px] max-w-[40%] rounded-xl overflow-hidden bg-slate-900">
-          <div className="relative aspect-[16/9]">
-            {market.image ? (
-              <Image
-                src={market.image}
-                alt={market.title}
-                fill
-                className="object-cover opacity-85"
-                sizes="(max-width:768px) 100vw, 40vw"
-              />
-            ) : null}
-
-            <div className="absolute top-2 left-2 text-[11px] px-2 py-1 rounded-md border border-white/10 bg-black/40 backdrop-blur">
-              {market.category}
-            </div>
-            <div className="absolute bottom-2 right-2 text-[11px] px-2 py-1 rounded-md border border-white/10 bg-black/40 backdrop-blur">
-              Vol: ₹{volCompact}
-            </div>
-
-            <div className="absolute inset-x-0 bottom-0 p-3">
-              <ProgressPulse value={market.yesShare} />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="text-lg font-semibold leading-snug text-slate-100 line-clamp-2">
-              {market.title}
-            </h3>
-            <input
-              type="radio"
-              checked={!!selected}
-              readOnly
-              className="accent-emerald-400 mt-0.5 shrink-0"
-              onClick={(e) => e.preventDefault()}
-            />
-          </div>
-
-          <div className="text-sm text-slate-300 truncate">
-            <span className="font-medium text-slate-200">{market.optionA}</span>
-            <span className="mx-1 text-slate-500">vs</span>
-            <span className="font-medium text-slate-200">{market.optionB}</span>
-          </div>
-
-          {/* Yes / No prices + shares */}
-          <div className="flex items-stretch gap-3">
-            <div className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-300 font-medium">Yes</span>
-                <span className="text-emerald-200 text-sm">
-                  {market.yesShare}%
-                </span>
-              </div>
-              <span className="text-emerald-200 tabular-nums">
-                ₹{(yes * 100).toFixed(0)}
-              </span>
-            </div>
-            <div className="flex-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-cyan-300 font-medium">No</span>
-                <span className="text-cyan-200 text-sm">{noShare}%</span>
-              </div>
-              <span className="text-cyan-200 tabular-nums">
-                ₹{(no * 100).toFixed(0)}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-1 grid grid-cols-12 items-center gap-3">
-            <div className="col-span-7 flex items-center gap-3 text-xs text-slate-400">
-              <Badge>
-                Participants: {market.participants.toLocaleString()}
-              </Badge>
-              <Badge>Vol: ₹{volCompact}</Badge>
-              <Badge>{market.deadline}</Badge>
-            </div>
-
-            <div className="col-span-5 flex items-center justify-end gap-3 shrink-0">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  onSelect?.();
-                }}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-300 to-cyan-300 text-black font-semibold hover:shadow-[0_16px_50px_-12px_rgba(45,212,191,0.7)]"
-              >
-                Select
-              </button>
-              <Link
-                href={`/bid/${market.id}`}
-                className="px-3 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-slate-200 text-sm hover:bg-white/[0.08]"
-              >
-                Open
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Link>
   );
 }

@@ -6,15 +6,11 @@ import { usePathname } from "next/navigation";
 import {
   Search,
   Bell,
-  Wallet,
   Menu,
   X,
-  ChevronDown,
-  ChevronUp,
   BarChart,
   Home,
   Briefcase,
-  CreditCard,
   Gavel,
   User,
 } from "lucide-react";
@@ -26,37 +22,22 @@ import {
 } from "@clerk/clerk-react";
 
 const ProboHeader = () => {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded, user } = useUser();
   const pathname = usePathname() || "/";
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  const walletDropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
-  // Close dropdowns if click outside
+  // Prevent hydration mismatch by ensuring client-side rendering
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        walletDropdownRef.current &&
-        !walletDropdownRef.current.contains(e.target)
-      ) {
-        setIsWalletDropdownOpen(false);
-      }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
-        // don't auto-close mobile menu here to avoid accidental closes while interacting inside header;
-        // keep only wallet dropdown auto-close. (optional)
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    setIsClient(true);
   }, []);
 
   // Close menus on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
-    setIsWalletDropdownOpen(false);
   }, [pathname]);
 
   // Close on Escape
@@ -64,7 +45,6 @@ const ProboHeader = () => {
     const onKey = (e) => {
       if (e.key === "Escape") {
         setIsMobileMenuOpen(false);
-        setIsWalletDropdownOpen(false);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -87,32 +67,8 @@ const ProboHeader = () => {
     },
   ];
 
-  const walletOptions = [
-    {
-      name: "Deposit Funds",
-      icon: CreditCard,
-      action: () => {
-        console.log("Deposit");
-        setIsWalletDropdownOpen(false);
-      },
-    },
-    {
-      name: "Withdraw",
-      icon: Wallet,
-      action: () => {
-        console.log("Withdraw");
-        setIsWalletDropdownOpen(false);
-      },
-    },
-    {
-      name: "Transaction History",
-      icon: BarChart,
-      action: () => {
-        console.log("History");
-        setIsWalletDropdownOpen(false);
-      },
-    },
-  ];
+  // Don't render auth-dependent content until client is ready and Clerk is loaded
+  const shouldShowAuthContent = isClient && isLoaded;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 py-3">
@@ -222,99 +178,60 @@ const ProboHeader = () => {
 
           {/* Right: actions */}
           <div className="flex items-center space-x-3">
-            {/* Wallet dropdown */}
-            <div className="relative hidden md:block" ref={walletDropdownRef}>
+            {/* Notifications - only show when signed in */}
+            {shouldShowAuthContent && isSignedIn && (
               <button
-                onClick={() => setIsWalletDropdownOpen((s) => !s)}
-                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/15 transition-all group"
-                aria-label="Wallet"
-                aria-haspopup="true"
-                aria-expanded={isWalletDropdownOpen}
+                className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/15 relative transition-all group hidden md:block"
+                aria-label="Notifications"
               >
-                <div className="relative">
-                  <Wallet className="h-5 w-5 text-emerald-400 group-hover:text-emerald-300" />
-                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-black" />
-                </div>
-                <span className="text-sm font-medium text-white">
-                  $24,568.42
-                </span>
-                {isWalletDropdownOpen ? (
-                  <ChevronUp className="h-4 w-4 text-white/70" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-white/70" />
-                )}
+                <Bell className="h-5 w-5 text-white group-hover:text-emerald-300" />
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-black" />
               </button>
-
-              {isWalletDropdownOpen && (
-                <div
-                  className="absolute right-0 mt-2 w-64 origin-top-right rounded-xl bg-gradient-to-b from-white/8 to-transparent backdrop-blur-2xl border border-white/5 shadow-2xl shadow-black/50 ring-1 ring-black/5 p-2 z-50 overflow-hidden"
-                  role="menu"
-                  aria-label="Wallet menu"
-                >
-                  <div className="p-3 border-b border-white/5">
-                    <p className="text-xs text-white/60">Total Balance</p>
-                    <p className="text-lg font-bold text-white">$24,568.42</p>
-                  </div>
-
-                  {walletOptions.map((option) => (
-                    <button
-                      key={option.name}
-                      onClick={option.action}
-                      className="flex items-center w-full text-left px-3 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                      role="menuitem"
-                    >
-                      <option.icon className="h-4 w-4 mr-3 text-emerald-400" />
-                      <span>{option.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Notifications */}
-            <button
-              className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/15 relative transition-all group hidden md:block"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5 text-white group-hover:text-emerald-300" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-black" />
-            </button>
+            )}
 
             {/* Auth / User */}
             <div className="flex items-center">
-              {isSignedIn ? (
-                <div className="flex items-center space-x-3">
-                  <div className="hidden md:block mt-1.5 ml-3">
-                    <UserButton
-                      afterSignOutUrl="/"
-                      appearance={{
-                        elements: {
-                          userButtonAvatarBox: "w-9 h-9",
-                          userButtonOuterIdentifier:
-                            "text-sm font-medium text-white",
-                          userButtonPopoverCard:
-                            "bg-black/80 backdrop-blur-2xl border border-white/10 rounded-xl",
-                          userButtonPopoverActionButton:
-                            "hover:bg-white/5 text-white",
-                          userButtonPopoverActionButtonText: "text-sm",
-                          userButtonPopoverFooter: "hidden",
-                        },
-                      }}
-                    />
+              {shouldShowAuthContent ? (
+                isSignedIn ? (
+                  <div className="flex items-center space-x-3">
+                    <div className="hidden md:block mt-1.5 ml-3">
+                      <UserButton
+                        afterSignOutUrl="/"
+                        appearance={{
+                          elements: {
+                            userButtonAvatarBox: "w-9 h-9",
+                            userButtonOuterIdentifier:
+                              "text-sm font-medium text-white",
+                            userButtonPopoverCard:
+                              "bg-black/80 backdrop-blur-2xl border border-white/10 rounded-xl",
+                            userButtonPopoverActionButton:
+                              "hover:bg-white/5 text-white",
+                            userButtonPopoverActionButtonText: "text-sm",
+                            userButtonPopoverFooter: "hidden",
+                          },
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="hidden md:flex items-center space-x-2">
+                    <Link href="/sign-in">
+                      <button className="px-4 cursor-pointer py-2.5 text-sm font-medium rounded-xl bg-transparent text-white/80 hover:text-white transition-colors">
+                        Sign In
+                      </button>
+                    </Link>
+                    <Link href={"/sign-up"}>
+                      <button className="px-4 cursor-pointer py-2.5 text-sm font-medium rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/10">
+                        Sign Up
+                      </button>
+                    </Link>
+                  </div>
+                )
               ) : (
+                // Loading placeholder to maintain layout
                 <div className="hidden md:flex items-center space-x-2">
-                  <Link href="/sign-in">
-                    <button className="px-4 cursor-pointer py-2.5 text-sm font-medium rounded-xl bg-transparent text-white/80 hover:text-white transition-colors">
-                      Sign In
-                    </button>
-                  </Link>
-                  <Link href={"/sign-up"}>
-                    <button className="px-4 cursor-pointer py-2.5 text-sm font-medium rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/10">
-                      Sign Up
-                    </button>
-                  </Link>
+                  <div className="w-16 h-9 bg-white/5 rounded-xl animate-pulse" />
+                  <div className="w-20 h-9 bg-white/5 rounded-xl animate-pulse" />
                 </div>
               )}
 
@@ -380,48 +297,41 @@ const ProboHeader = () => {
             </div>
 
             <div className="p-3 border-t border-white/5">
-              <div className="flex items-center justify-between px-3 py-3 rounded-lg bg-white/6">
-                <div className="flex items-center">
-                  <Wallet className="h-5 w-5 text-emerald-400 mr-3" />
-                  <div>
-                    <p className="text-xs text-white/60">Wallet Balance</p>
-                    <p className="text-sm font-medium text-white">$24,568.42</p>
+              {shouldShowAuthContent ? (
+                isSignedIn ? (
+                  <div className="flex justify-center">
+                    <UserButton
+                      afterSignOutUrl="/"
+                      appearance={{
+                        elements: {
+                          userButtonAvatarBox: "w-12 h-12",
+                          userButtonTrigger:
+                            "flex flex-col items-center space-y-2",
+                          userButtonOuterIdentifier:
+                            "text-sm font-medium text-white",
+                        },
+                      }}
+                    />
                   </div>
-                </div>
-                <button className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg border border-emerald-500/20">
-                  Manage
-                </button>
-              </div>
-            </div>
-
-            <div className="p-3 border-t border-white/5">
-              {isSignedIn ? (
-                <div className="flex justify-center">
-                  <UserButton
-                    afterSignOutUrl="/"
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: "w-12 h-12",
-                        userButtonTrigger:
-                          "flex flex-col items-center space-y-2",
-                        userButtonOuterIdentifier:
-                          "text-sm font-medium text-white",
-                      },
-                    }}
-                  />
-                </div>
+                ) : (
+                  <div className="flex space-x-3">
+                    <a href="/sign-in">
+                      <button className="flex-1 px-4 py-3 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors">
+                        Sign In
+                      </button>
+                    </a>
+                    <a href="/sign-up">
+                      <button className="flex-1 px-4 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all">
+                        Sign Up
+                      </button>
+                    </a>
+                  </div>
+                )
               ) : (
+                // Loading placeholder for mobile auth section
                 <div className="flex space-x-3">
-                  <a href="/sign-in">
-                    <button className="flex-1 px-4 py-3 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors">
-                      Sign In
-                    </button>
-                  </a>
-                  <a href="/sign-up">
-                    <button className="flex-1 px-4 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all">
-                      Sign Up
-                    </button>
-                  </a>
+                  <div className="flex-1 h-12 bg-white/5 rounded-lg animate-pulse" />
+                  <div className="flex-1 h-12 bg-white/5 rounded-lg animate-pulse" />
                 </div>
               )}
             </div>
