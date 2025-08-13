@@ -1,6 +1,33 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Slider } from "../components/ui/slider";
+import { Badge } from "../components/ui/badge";
+import { Separator } from "../components/ui/separator";
+import { Progress } from "../components/ui/progress";
+import { ScrollArea } from "../components/ui/scroll-area";
+import {
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Settings,
+  Activity,
+  Zap,
+  Target,
+  DollarSign,
+  Users,
+  Timer,
+} from "lucide-react";
 
 export default function SimulatorPage() {
   // Global State
@@ -21,9 +48,9 @@ export default function SimulatorPage() {
 
   // Form state
   const [yesBets, setYesBets] = useState(100);
-  const [yesPriceSlider, setYesPriceSlider] = useState(5.0);
+  const [yesPriceSlider, setYesPriceSlider] = useState([5.0]);
   const [noBets, setNoBets] = useState(100);
-  const [noPriceSlider, setNoPriceSlider] = useState(5.0);
+  const [noPriceSlider, setNoPriceSlider] = useState([5.0]);
 
   // Function to create a unique ID for each order
   const getUniqueId = useCallback(() => {
@@ -146,8 +173,8 @@ export default function SimulatorPage() {
 
   // Event handlers
   const handlePlaceYesBets = () => {
-    if (yesBets > 0 && yesPriceSlider >= 0.5 && yesPriceSlider <= 9.5) {
-      placeBulkBets("yes", yesBets, yesPriceSlider);
+    if (yesBets > 0 && yesPriceSlider[0] >= 0.5 && yesPriceSlider[0] <= 9.5) {
+      placeBulkBets("yes", yesBets, yesPriceSlider[0]);
     } else {
       logNewBet(
         "Invalid input for Yes bets. Number must be > 0 and price between 0.5 and 9.5."
@@ -156,8 +183,8 @@ export default function SimulatorPage() {
   };
 
   const handlePlaceNoBets = () => {
-    if (noBets > 0 && noPriceSlider >= 0.5 && noPriceSlider <= 9.5) {
-      placeBulkBets("no", noBets, noPriceSlider);
+    if (noBets > 0 && noPriceSlider[0] >= 0.5 && noPriceSlider[0] <= 9.5) {
+      placeBulkBets("no", noBets, noPriceSlider[0]);
     } else {
       logNewBet(
         "Invalid input for No bets. Number must be > 0 and price between 0.5 and 9.5."
@@ -172,8 +199,8 @@ export default function SimulatorPage() {
   // Sync sliders and recommended prices on market price change
   useEffect(() => {
     if (currentMarketPrice !== null) {
-      setYesPriceSlider(currentMarketPrice);
-      setNoPriceSlider(10 - currentMarketPrice);
+      setYesPriceSlider([currentMarketPrice]);
+      setNoPriceSlider([10 - currentMarketPrice]);
     }
   }, [currentMarketPrice]);
 
@@ -186,341 +213,307 @@ export default function SimulatorPage() {
     currentMarketPrice !== null ? (currentMarketPrice * 10).toFixed(0) : 50;
 
   return (
-    <>
-      <title>Probo Trading Simulator</title>
-      <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      />
-      <style>{`
-        .order-book-row {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.25rem;
-        }
-        .order-book-bar {
-            height: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border-radius: 0.375rem;
-            transition: width 0.3s ease-in-out;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .order-book-bar.yes-side {
-            background-color: #10b981; /* Green for 'Yes' */
-        }
-        .order-book-bar.no-side {
-            background-color: #ef4444; /* Red for 'No' */
-        }
-        .order-book-bar-container {
-            display: flex;
-            height: 100%;
-        }
-        .range-slider-container {
-            position: relative;
-            width: 100%;
-        }
-        .range-slider {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 10px;
-            background: #4a5568; /* Darker slider track */
-            outline: none;
-            opacity: 0.7;
-            transition: opacity .2s;
-            border-radius: 5px;
-        }
-        .range-slider:hover {
-            opacity: 1;
-        }
-        .range-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #63b3ed; /* Lighter thumb for dark theme */
-            cursor: pointer;
-            border-radius: 50%;
-        }
-        .range-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: #63b3ed; /* Lighter thumb for dark theme */
-            cursor: pointer;
-            border-radius: 50%;
-            border: none;
-        }
-        /* Style for the value display above the slider */
-        .slider-value {
-            position: absolute;
-            top: -25px;
-            transform: translateX(-50%);
-            background-color: #63b3ed; /* Lighter value box */
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            white-space: nowrap;
-        }
-      `}</style>
-      <div className="p-4 bg-gray-900 text-gray-200 min-h-screen flex items-center justify-center font-['Inter']">
-        <div className="container mx-auto p-8 bg-gray-800 shadow-xl rounded-2xl max-w-5xl">
-          <h1 className="text-3xl font-bold text-center mb-6 text-white"></h1>
-          <p className="text-center text-gray-400 mb-8">‎</p>
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
+      <div className="container mx-auto pt-16 pb-6 px-4 max-w-7xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2">Trading Simulator</h1>
+          <p className="text-muted-foreground">
+            Experience prediction market mechanics in real-time
+          </p>
+        </div>
 
-          {/* Live Data Display */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-8">
-            <div className="p-4 bg-gray-700 text-white rounded-lg shadow-md">
-              <p className="text-xl font-bold">₹{totalPool.toFixed(2)}</p>
-              <p className="text-sm text-gray-400">Total Pool Value</p>
-            </div>
-            <div className="p-4 bg-yellow-500 text-white rounded-lg shadow-md">
-              <p className="text-xl font-bold">
-                ₹{totalFeesCollected.toFixed(2)}
-              </p>
-              <p className="text-sm text-gray-200">Fees Collected</p>
-            </div>
-            <div className="p-4 bg-gray-700 text-white rounded-lg shadow-md">
-              <p className="text-xl font-bold">{yesOrders.length}</p>
-              <p className="text-sm text-gray-400">Pending 'Yes' Bets</p>
-            </div>
-            <div className="p-4 bg-gray-700 text-white rounded-lg shadow-md">
-              <p className="text-xl font-bold">{noOrders.length}</p>
-              <p className="text-sm text-gray-400">Pending 'No' Bets</p>
-            </div>
-            <div className="p-4 bg-green-500 text-white rounded-lg shadow-md">
-              <p className="text-xl font-bold">{matchedCount}</p>
-              <p className="text-sm text-gray-200">Matched Orders</p>
-            </div>
-          </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <p className="text-2xl font-bold">₹{totalPool.toFixed(2)}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Total Pool</p>
+            </CardContent>
+          </Card>
 
-          <div className="mb-8 p-4 bg-purple-600 text-white rounded-lg shadow-md text-center">
-            <p className="text-2xl font-bold">{probability}%</p>
-            <p className="text-sm text-gray-200">Probability of YES</p>
-          </div>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Zap className="h-4 w-4 text-yellow-500" />
+                <p className="text-2xl font-bold">
+                  ₹{totalFeesCollected.toFixed(2)}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">Fees Collected</p>
+            </CardContent>
+          </Card>
 
-          {/* Bet Controls */}
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            {/* Yes Bet Control */}
-            <div className="bg-gray-700 p-6 rounded-xl shadow-inner">
-              <h2 className="text-2xl font-semibold mb-4 text-green-400">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <p className="text-2xl font-bold">{yesOrders.length}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Yes Orders</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <TrendingDown className="h-4 w-4 text-red-500" />
+                <p className="text-2xl font-bold">{noOrders.length}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">No Orders</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Users className="h-4 w-4 text-blue-500" />
+                <p className="text-2xl font-bold">{matchedCount}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Matched</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+          {/* Yes Betting Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-600">
+                <TrendingUp className="h-5 w-5" />
                 Place 'Yes' Bets
-              </h2>
-              <h3 className="text-lg font-medium text-blue-400 mb-2">
-                Recommended Price:{" "}
-                <span>₹{currentMarketPrice?.toFixed(1) || "5.0"}</span>
-              </h3>
-              <div className="mb-4">
-                <label className="block text-gray-300 mb-1">
-                  Number of Bets
-                </label>
-                <input
+              </CardTitle>
+              <CardDescription>
+                Recommended Price: ₹{currentMarketPrice?.toFixed(1) || "5.0"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="yes-bets">Number of Bets</Label>
+                <Input
+                  id="yes-bets"
                   type="number"
                   value={yesBets}
-                  onChange={(e) => setYesBets(parseInt(e.target.value))}
+                  onChange={(e) => setYesBets(parseInt(e.target.value) || 0)}
                   min="1"
-                  className="w-full p-2 border border-gray-600 rounded-lg bg-gray-900 text-white"
+                  placeholder="Enter number of bets"
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-300 mb-4">
-                  Target Price (₹0.5-₹9.5)
-                </label>
-                <div className="range-slider-container">
-                  <input
-                    type="range"
-                    className="range-slider"
-                    min="0.5"
-                    max="9.5"
-                    value={yesPriceSlider}
-                    step="0.5"
-                    onChange={(e) =>
-                      setYesPriceSlider(parseFloat(e.target.value))
-                    }
-                  />
-                  <div
-                    className="slider-value"
-                    style={{
-                      left: `calc(${((yesPriceSlider - 0.5) / 9).toFixed(
-                        2
-                      )} * 100%)`,
-                    }}
-                  >
-                    ₹{yesPriceSlider.toFixed(1)}
-                  </div>
+
+              <div className="space-y-4">
+                <Label>Target Price: ₹{yesPriceSlider[0].toFixed(1)}</Label>
+                <Slider
+                  value={yesPriceSlider}
+                  onValueChange={setYesPriceSlider}
+                  max={9.5}
+                  min={0.5}
+                  step={0.5}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>₹0.5</span>
+                  <span>₹9.5</span>
                 </div>
               </div>
-              <button
+
+              <Button
                 onClick={handlePlaceYesBets}
-                className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-green-700 transition-colors"
+                className="w-full bg-green-600 hover:bg-green-700"
+                size="lg"
               >
                 Place Yes Bets
-              </button>
-            </div>
+              </Button>
+            </CardContent>
+          </Card>
 
-            {/* No Bet Control */}
-            <div className="bg-gray-700 p-6 rounded-xl shadow-inner">
-              <h2 className="text-2xl font-semibold mb-4 text-red-400">
+          {/* No Betting Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-500">
+                <TrendingDown className="h-5 w-5" />
                 Place 'No' Bets
-              </h2>
-              <h3 className="text-lg font-medium text-blue-400 mb-2">
-                Recommended Price:{" "}
-                <span>
-                  ₹
-                  {currentMarketPrice
-                    ? (10 - currentMarketPrice).toFixed(1)
-                    : "5.0"}
-                </span>
-              </h3>
-              <div className="mb-4">
-                <label className="block text-gray-300 mb-1">
-                  Number of Bets
-                </label>
-                <input
+              </CardTitle>
+              <CardDescription>
+                Recommended Price: ₹
+                {currentMarketPrice
+                  ? (10 - currentMarketPrice).toFixed(1)
+                  : "5.0"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="no-bets">Number of Bets</Label>
+                <Input
+                  id="no-bets"
                   type="number"
                   value={noBets}
-                  onChange={(e) => setNoBets(parseInt(e.target.value))}
+                  onChange={(e) => setNoBets(parseInt(e.target.value) || 0)}
                   min="1"
-                  className="w-full p-2 border border-gray-600 rounded-lg bg-gray-900 text-white"
+                  placeholder="Enter number of bets"
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-300 mb-4">
-                  Target Price (₹0.5-₹9.5)
-                </label>
-                <div className="range-slider-container">
-                  <input
-                    type="range"
-                    className="range-slider"
-                    min="0.5"
-                    max="9.5"
-                    value={noPriceSlider}
-                    step="0.5"
-                    onChange={(e) =>
-                      setNoPriceSlider(parseFloat(e.target.value))
-                    }
-                  />
-                  <div
-                    className="slider-value"
-                    style={{
-                      left: `calc(${((noPriceSlider - 0.5) / 9).toFixed(
-                        2
-                      )} * 100%)`,
-                    }}
-                  >
-                    ₹{noPriceSlider.toFixed(1)}
-                  </div>
+
+              <div className="space-y-4">
+                <Label>Target Price: ₹{noPriceSlider[0].toFixed(1)}</Label>
+                <Slider
+                  value={noPriceSlider}
+                  onValueChange={setNoPriceSlider}
+                  max={9.5}
+                  min={0.5}
+                  step={0.5}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>₹0.5</span>
+                  <span>₹9.5</span>
                 </div>
               </div>
-              <button
+
+              <Button
                 onClick={handlePlaceNoBets}
-                className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-red-700 transition-colors"
+                className="w-full bg-red-500 hover:bg-red-600"
+                size="lg"
               >
                 Place No Bets
-              </button>
-            </div>
-          </div>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Probo Settings */}
-          <div className="bg-gray-700 p-6 rounded-xl shadow-inner mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-gray-200">
-              Probo Settings
-            </h2>
-            <div className="mb-4">
-              <label className="block text-gray-300 mb-1">Probo Fee (%)</label>
-              <input
-                type="number"
-                value={proboFee}
-                onChange={(e) => setProboFee(parseFloat(e.target.value))}
-                min="0"
-                max="100"
-                step="0.1"
-                className="w-full p-2 border border-gray-600 rounded-lg bg-gray-900 text-white"
-              />
+        {/* Settings */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Platform Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <Label htmlFor="fee">Platform Fee (%)</Label>
+                <Input
+                  id="fee"
+                  type="number"
+                  value={proboFee}
+                  onChange={(e) => setProboFee(parseFloat(e.target.value) || 0)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="mt-1"
+                />
+              </div>
+              <Button onClick={handleUpdateFee} className="mt-6">
+                Update Fee
+              </Button>
             </div>
-            <button
-              onClick={handleUpdateFee}
-              className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-blue-700 transition-colors"
-            >
-              Update Fee
-            </button>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            {/* Order Book Depth Graph */}
-            <div className="bg-gray-700 p-6 rounded-xl shadow-inner">
-              <h2 className="text-xl font-semibold mb-4 text-gray-200">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Order Book */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
                 Order Book Depth
-              </h2>
-              <div className="max-h-96 overflow-y-auto">
-                {orderBookDepth.map((item, index) => (
-                  <div key={index} className="order-book-row">
-                    <div className="order-book-bar-container justify-end">
-                      <div
-                        className="order-book-bar yes-side"
-                        style={{
-                          width: `${item.yesWidth}%`,
-                          minWidth: item.yesCount > 0 ? "2rem" : "0",
-                        }}
-                      >
-                        {item.yesCount > 0 ? item.yesCount : ""}
+              </CardTitle>
+              <CardDescription>
+                Real-time view of pending orders at each price level
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-96">
+                <div className="space-y-1">
+                  {orderBookDepth.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-3 items-center gap-2"
+                    >
+                      {/* Yes Orders */}
+                      <div className="flex justify-end">
+                        {item.yesCount > 0 && (
+                          <div className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium min-w-[2rem] text-center">
+                            {item.yesCount}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <span className="font-bold text-gray-400 text-center text-sm">
-                      ₹{item.price.toFixed(1)}
-                    </span>
-                    <div className="order-book-bar-container justify-start">
-                      <div
-                        className="order-book-bar no-side"
-                        style={{
-                          width: `${item.noWidth}%`,
-                          minWidth: item.noCount > 0 ? "2rem" : "0",
-                        }}
-                      >
-                        {item.noCount > 0 ? item.noCount : ""}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Simulation Logs */}
-            <div className="grid grid-rows-2 gap-4">
-              {/* New Bets Log */}
-              <div className="bg-gray-700 p-6 rounded-xl shadow-inner overflow-y-auto">
-                <h2 className="text-xl font-semibold mb-4 text-gray-200">
+                      {/* Price */}
+                      <div className="text-center font-mono text-sm">
+                        ₹{item.price.toFixed(1)}
+                      </div>
+
+                      {/* No Orders */}
+                      <div className="flex justify-start">
+                        {item.noCount > 0 && (
+                          <div className="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium min-w-[2rem] text-center">
+                            {item.noCount}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Logs */}
+          <div className="space-y-4">
+            {/* New Bets Log */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Activity className="h-4 w-4" />
                   New Bets Log
-                </h2>
-                <div className="text-sm text-gray-400 space-y-1">
-                  {newBetsLog.map((log, index) => (
-                    <p key={index}>{log}</p>
-                  ))}
-                </div>
-              </div>
-              {/* Matched Orders Log */}
-              <div className="bg-gray-700 p-6 rounded-xl shadow-inner overflow-y-auto">
-                <h2 className="text-xl font-semibold mb-4 text-gray-200">
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-44">
+                  <div className="space-y-1">
+                    {newBetsLog.map((log, index) => (
+                      <p
+                        key={index}
+                        className="text-xs text-muted-foreground p-2 bg-muted/50 rounded"
+                      >
+                        {log}
+                      </p>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Matched Orders Log */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Timer className="h-4 w-4" />
                   Matched Orders Log
-                </h2>
-                <div className="text-sm text-gray-400 space-y-1">
-                  {matchedOrdersLog.map((log, index) => (
-                    <p key={index}>{log}</p>
-                  ))}
-                </div>
-              </div>
-            </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-44">
+                  <div className="space-y-1">
+                    {matchedOrdersLog.map((log, index) => (
+                      <p
+                        key={index}
+                        className="text-xs text-muted-foreground p-2 bg-muted/50 rounded"
+                      >
+                        {log}
+                      </p>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -24,7 +24,7 @@ export default function Page() {
 
         // Fetch bids data from the backend
         const bidsResponse = await fetch(
-          "http://localhost:5500/api/get/bids"
+          "https://nxtwin-backend-final.onrender.com/api/get/bids"
         ).then((res) => res.json());
 
         // Transform backend data to match frontend format
@@ -44,6 +44,10 @@ export default function Page() {
             participants: 0, // Placeholder - backend needs to track this
             deadline: new Date(bid.endTime).toLocaleString(),
             image: bid.image,
+            // Add status and resolution fields
+            status: bid.status || "active",
+            resolution: bid.resolution || null,
+            resolvedAt: bid.resolvedAt || null,
           };
         });
 
@@ -260,6 +264,9 @@ function CardGrid({ market, selected, onSelect }) {
   const displayYesPrice = yesPrice ? `₹${yesPrice.toFixed(2)}` : "N/A";
   const displayNoPrice = noPrice ? `₹${noPrice.toFixed(2)}` : "N/A";
 
+  // Check if event is resolved
+  const isResolved = market.status === "resolved";
+
   return (
     <SpotlightCard
       className="!p-2 !m-0"
@@ -289,6 +296,13 @@ function CardGrid({ market, selected, onSelect }) {
             <div className="absolute top-2 left-2 text-[11px] px-2 py-1 rounded-md border border-white/10 bg-black/40 backdrop-blur text-slate-200">
               {market.category}
             </div>
+
+            {/* Resolved badge overlay */}
+            {isResolved && (
+              <div className="absolute top-2 right-2 text-[11px] px-2 py-1 rounded-md border border-green-400/50 bg-green-500/20 backdrop-blur text-green-300">
+                Resolved
+              </div>
+            )}
           </div>
         </Link>
 
@@ -303,22 +317,37 @@ function CardGrid({ market, selected, onSelect }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 flex items-center justify-between">
-              <span className="text-emerald-300 font-medium">
-                {market.optionA}
-              </span>
-              <span className="text-emerald-200 tabular-nums">
-                {displayYesPrice}
-              </span>
+          {/* Conditional rendering based on resolved status */}
+          {isResolved ? (
+            <div className="rounded-lg border border-green-400/30 bg-green-400/10 px-3 py-2 text-center">
+              <div className="text-green-300 font-medium text-sm mb-1">
+                Event Resolved
+              </div>
+              <div className="text-green-200 text-xs">
+                Winner:{" "}
+                <span className="font-semibold">{market.resolution}</span>
+              </div>
             </div>
-            <div className="flex-1 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 flex items-center justify-between">
-              <span className="text-red-400 font-medium">{market.optionB}</span>
-              <span className="text-red-300 tabular-nums">
-                {displayNoPrice}
-              </span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 flex items-center justify-between">
+                <span className="text-emerald-300 font-medium">
+                  {market.optionA}
+                </span>
+                <span className="text-emerald-200 tabular-nums">
+                  {displayYesPrice}
+                </span>
+              </div>
+              <div className="flex-1 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 flex items-center justify-between">
+                <span className="text-red-400 font-medium">
+                  {market.optionB}
+                </span>
+                <span className="text-red-300 tabular-nums">
+                  {displayNoPrice}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </SpotlightCard>
